@@ -48,7 +48,7 @@ const char usb2s_ascii[57] =  {0 , 0 , 0 , 0 ,'A','B','C','D','E','F','G','H','I
                               '_','+','{','}','|', 0 ,':','\"','~','<','>','\?' };
 
 
-pthread_t network_thread;
+pthread_t network_thread; // Allowcate space for network thread
 void *network_thread_f(void *);
 
 int main()
@@ -62,6 +62,12 @@ int main()
   char keystate[12];
   int input_row = 17;
   int input_col = 0;
+
+  int received_row = 1;
+  int received_col = 0;
+   
+
+  char sent_msg[BUFFER_SIZE];
 
   if ((err = fbopen()) != 0) {
     fprintf(stderr, "Error: Could not open framebuffer: %d\n", err);
@@ -105,6 +111,8 @@ int main()
   }
 
   /* Start the network thread */
+  //Sets up thread and starts runnning it in parallel
+  // in this case run a function called network_thread_f (see below)
   pthread_create(&network_thread, NULL, network_thread_f, NULL);
 
   /* Look for and handle keypresses */
@@ -118,23 +126,40 @@ int main()
 	      packet.keycode[1]);
       printf("%s\n", keystate);
       fbputs(keystate, 12, 0);
-      if (packet.keycode[0] != 0 && packet.keycode[0] != 42) {
-      if (packet.modifiers == 0x02 || packet.modifiers == 0x20){
+
+	// single check for enter 
+     if (packet.keycode[0] == 0x28) {
+	fbputs(sent_msg,received_row,0);
+	sent_msg[BUFFER_SIZE] = '\O';
+	continue;
+     }
+
+
+
+      if (packet.keycode[0] != 0 && packet.keycode[0] != 42) { //button AND not delete
+      if (packet.modifiers == 0x02 || packet.modifiers == 0x20){ //shift
         fbputchar(usb2s_ascii[packet.keycode[0]], input_row, input_col);
+	strcat(sent_msg,usb2s_ascii[packet.keycode[0]]);
       }
       else{
         fbputchar(usb2ns_ascii[packet.keycode[0]], input_row, input_col);
+	strcat(sent_msg,usb2ns_ascii[packet.keycode[0]]);
+
       }
-      input_col++;
-      if (input_col == 64){
+      input_col++; 
+      if (input_col == 64){//wrap around 
 	input_col = 0;
         input_row++;
       }
       }
-      else if (packet.keycode[0] == 0){
+      else if (packet.keycode[0] == 0){ //no event (displace space)
         fbputchar(12, input_row,input_col);
       }
-      else if (packet.keycode[0] == 42){
+      else if (packet.keycode[0] == 42){ // delete
+        size_t length = strlen(sent_msg);
+	sent_msg(length-1) = '\O';
+	
+
         fbputchar(' ', input_row, input_col);
 	input_col--;
         if (input_col < 0) {
@@ -168,9 +193,10 @@ void *network_thread_f(void *ignored)
   while ( (n = read(sockfd, &recvBuf, BUFFER_SIZE - 1)) > 0 ) {
     recvBuf[n] = '\0';
     printf("%s", recvBuf);
-    fbputs(recvBuf, 8, 0);
+    fbputs(recvBuf, received_row, 0); //draw given string recvBuf
   }
-
+  received_row++;
   return NULL;
 }
+
 
