@@ -102,6 +102,16 @@ void fbputchar(char c, int row, int col)
   }
 }
 
+void fbscroll(int msglen) {
+    int rows = msglen / 64;
+    unsigned char *framebuffer2 = calloc(fb_finfo.smem_len);
+    unsigned char *framebuffer_scroll = framebuffer+(rows * FONT_HEIGHT * 2 + fb_vinfo.yoffset) * fb_finfo.line_length; 
+    size_t middle_section = sizeof(framebuffer - (rows * FONT_HEIGHT * 2 + fb_vinfo.yoffset) * fb_finfo.line_length -
+						 (3 * FONT_HEIGHT * 2 + fb_vinfo.yoffset) * fb_finfo.line_length);
+    memcpy(framebuffer_scroll, framebuffer2, middle_section);
+    memcpy(framebuffer2, framebuffer, middle_section);    
+}
+
 /*
  * Draw the given string at the given row/column.
  * String must fit on a single line: wrap-around is not handled.

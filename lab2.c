@@ -60,8 +60,13 @@ int main()
   struct usb_keyboard_packet packet;
   int transferred;
   char keystate[12];
-  int input_row = 17;
+  int input_row = 22;
   int input_col = 0;
+  int message_row = 0;
+  int message_col = 0;
+  char sendBuf[BUFFER_SIZE];
+
+  memset(sendBuf, 0, sizeof(sendBuf));
 
   if ((err = fbopen()) != 0) {
     fprintf(stderr, "Error: Could not open framebuffer: %d\n", err);
@@ -70,9 +75,7 @@ int main()
 
   /* Draw rows of asterisks across the top and bottom of the screen */
   for (col = 0 ; col < 64 ; col++) {
-    fbputchar('*', 0, col);
-    fbputchar('_',16, col); 
-    fbputchar('*', 23, col);
+    fbputchar('_', 21, col); 
   }
 
   fbputs("Hello CSEE 4840 World!", 4, 10);
@@ -117,13 +120,16 @@ int main()
       sprintf(keystate, "%08x %02x %02x", packet.modifiers, packet.keycode[0],
 	      packet.keycode[1]);
       printf("%s\n", keystate);
-      fbputs(keystate, 12, 0);
-      if (packet.keycode[0] != 0 && packet.keycode[0] != 42) {
+      //fbputs(keystate, 12, 0);
+      if (packet.keycode[0] != 0 && packet.keycode[0] != 42 && packet.keycode[0] != 40) {
       if (packet.modifiers == 0x02 || packet.modifiers == 0x20){
         fbputchar(usb2s_ascii[packet.keycode[0]], input_row, input_col);
+        sendBuf[input_row*64+input_col] = usb2s_ascii[packet.keycode[0]];
       }
       else{
         fbputchar(usb2ns_ascii[packet.keycode[0]], input_row, input_col);
+        sendBuf[input_row*64+input_col] = usb2s_ascii[packet.keycode[0]];
+      }
       }
       input_col++;
       if (input_col == 64){
@@ -136,6 +142,7 @@ int main()
       }
       else if (packet.keycode[0] == 42){
         fbputchar(' ', input_row, input_col);
+        sendBuf[input_row*64+input_col] = 0;
 	input_col--;
         if (input_col < 0) {
           input_col = 63;
