@@ -135,7 +135,8 @@ int main()
         fbputchar(12, input_row,input_col);
       }
       else if (packet.keycode[0] == 42){
-        input_col--;
+        fbputchar(' ', input_row, input_col);
+	input_col--;
         if (input_col < 0) {
           input_col = 63;
           input_row--;
