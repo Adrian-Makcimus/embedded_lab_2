@@ -118,7 +118,7 @@ int main()
 	      packet.keycode[1]);
       printf("%s\n", keystate);
       fbputs(keystate, 12, 0);
-      if (packet.keycode[0] != 0) {
+      if (packet.keycode[0] != 0 && packet.keycode[0] != 42) {
       if (packet.modifiers == 0x02 || packet.modifiers == 0x20){
         fbputchar(usb2s_ascii[packet.keycode[0]], input_row, input_col);
       }
@@ -131,6 +131,18 @@ int main()
         input_row++;
       }
       }
+      else if (packet.keycode[0] == 0){
+        fbputchar(12, input_row,input_col);
+      }
+      else if (packet.keycode[0] == 42){
+        input_col--;
+        if (input_col < 0) {
+          input_col = 63;
+          input_row--;
+          fbputchar(' ', input_row, input_col);
+        }
+      }
+
  
       if (packet.keycode[0] == 0x29) { /* ESC pressed? */
 	break;
