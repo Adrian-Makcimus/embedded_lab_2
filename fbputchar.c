@@ -17,9 +17,10 @@ amebuffer character generator
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/ioctl.h>
-
+#include <stdlib.h>
 #include <linux/fb.h>
-
+#include <string.h>
+#include <stdio.h>
 #define FBDEV "/dev/fb0"
 
 #define FONT_WIDTH 8
@@ -102,14 +103,28 @@ void fbputchar(char c, int row, int col)
   }
 }
 
-void fbscroll(int msglen) {
+void fb_scroll(int msglen) {
     int rows = msglen / 64;
-    unsigned char *framebuffer2 = calloc(fb_finfo.smem_len);
+    unsigned char *framebuffer2 = calloc(fb_finfo.smem_len, sizeof('a'));
     unsigned char *framebuffer_scroll = framebuffer+(rows * FONT_HEIGHT * 2 + fb_vinfo.yoffset) * fb_finfo.line_length; 
     size_t middle_section = sizeof(framebuffer - (rows * FONT_HEIGHT * 2 + fb_vinfo.yoffset) * fb_finfo.line_length -
 						 (3 * FONT_HEIGHT * 2 + fb_vinfo.yoffset) * fb_finfo.line_length);
     memcpy(framebuffer_scroll, framebuffer2, middle_section);
     memcpy(framebuffer2, framebuffer, middle_section);    
+    free(framebuffer2);
+}
+
+void clear_framebuff(int rowstart, int colstart) {
+    unsigned char *framebuffer_start = framebuffer +
+    (rowstart * FONT_HEIGHT * 2 + fb_vinfo.yoffset) * fb_finfo.line_length +
+    (colstart * FONT_WIDTH * 2 + fb_vinfo.xoffset) * BITS_PER_PIXEL / 8;
+
+    printf("%d\n", fb_finfo.smem_len);
+    printf("%d\n", framebuffer_start-framebuffer);
+    size_t middle_section = sizeof(framebuffer) - (rowstart * FONT_HEIGHT * 2 + fb_vinfo.yoffset) * fb_finfo.line_length +
+    (colstart * FONT_WIDTH * 2 + fb_vinfo.xoffset) * BITS_PER_PIXEL / 8;
+
+    memset(framebuffer_start, 0, middle_section);
 }
 
 /*

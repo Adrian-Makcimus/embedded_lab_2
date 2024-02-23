@@ -62,11 +62,11 @@ int main()
   char keystate[12];
   int input_row = 22;
   int input_col = 0;
-  int message_row = 0;
+  int message_row = 9;
   int message_col = 0;
   char sendBuf[BUFFER_SIZE];
 
-  memset(sendBuf, 0, sizeof(sendBuf));
+  memset(sendBuf, ' ', sizeof(sendBuf));
 
   if ((err = fbopen()) != 0) {
     fprintf(stderr, "Error: Could not open framebuffer: %d\n", err);
@@ -124,12 +124,11 @@ int main()
       if (packet.keycode[0] != 0 && packet.keycode[0] != 42 && packet.keycode[0] != 40) {
       if (packet.modifiers == 0x02 || packet.modifiers == 0x20){
         fbputchar(usb2s_ascii[packet.keycode[0]], input_row, input_col);
-        sendBuf[input_row*64+input_col] = usb2s_ascii[packet.keycode[0]];
+        sendBuf[(input_row-22)*64+input_col] = usb2s_ascii[packet.keycode[0]];
       }
       else{
         fbputchar(usb2ns_ascii[packet.keycode[0]], input_row, input_col);
-        sendBuf[input_row*64+input_col] = usb2s_ascii[packet.keycode[0]];
-      }
+        sendBuf[(input_row-22)*64+input_col] = usb2ns_ascii[packet.keycode[0]];
       }
       input_col++;
       if (input_col == 64){
@@ -150,6 +149,23 @@ int main()
           fbputchar(' ', input_row, input_col);
         }
       }
+     else if (packet.keycode[0] == 40) {
+	clear_framebuff(22, 0);
+        input_row = 22;
+        input_col =0;
+        for (int i = 0; i < BUFFER_SIZE; i++) {
+	   fbputchar(sendBuf[i], message_row, message_col);
+	   message_col++;
+	    if (message_col == 64){
+		message_col = 0;
+		message_row++;
+	    }
+            if(message_row == 20) {
+               fb_scroll(BUFFER_SIZE);	
+            }
+        }
+        
+     }
 
  
       if (packet.keycode[0] == 0x29) { /* ESC pressed? */
