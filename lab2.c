@@ -47,9 +47,14 @@ const char usb2s_ascii[57] =  {0 , 0 , 0 , 0 ,'A','B','C','D','E','F','G','H','I
                               '!','@','#','$','%','^','&','*','(',')', 0 , 0 , 0 ,'\t',' ',
                               '_','+','{','}','|', 0 ,':','\"','~','<','>','\?' };
 
+pthread_mutex_t disp_msg_mutex = PTHREAD_MUTEX_INITIALIZER; 
+pthread_cond_t cond1 = PTHREAD_COND_INITIALIZER; 
+int valid = 0;
+int done = 0; //1 if true 
 
 pthread_t network_thread; // Allowcate space for network thread
 void *network_thread_f(void *);
+void *network_thread_type(void*); 
 
 int main()
 {
@@ -114,79 +119,39 @@ int main()
   //Sets up thread and starts runnning it in parallel
   // in this case run a function called network_thread_f (see below)
   pthread_create(&network_thread, NULL, network_thread_f, NULL);
+  pthread_creat(&network_thread, NULL, network_thread_type, NULL);
+
+
 
   /* Look for and handle keypresses */
+  // this probably needs to be its own thread function (see recording near 50min
+  // 
+/*
   for (;;) {
-    libusb_interrupt_transfer(keyboard, endpoint_address,
-			      (unsigned char *) &packet, sizeof(packet),
-			      &transferred, 0);
-  
-  if (transferred == sizeof(packet)) {
-      sprintf(keystate, "%08x %02x %02x", packet.modifiers, packet.keycode[0],
-	      packet.keycode[1]);
-      printf("%s\n", keystate);
-      fbputs(keystate, 12, 0);
+    } // end of for(;;) loop
+*/
 
-	// single check for enter 
-     if (packet.keycode[0] == 0x28) {
-	fbputs(sent_msg,received_row,0);
-	sent_msg[BUFFER_SIZE] = '\O';
-	continue;
-     }
+   if(done == 1){
+    /* Terminate the network thread */
+     pthread_cancel(network_thread);
 
-
-
-      if (packet.keycode[0] != 0 && packet.keycode[0] != 42) { //button AND not delete
-      if (packet.modifiers == 0x02 || packet.modifiers == 0x20){ //shift
-        fbputchar(usb2s_ascii[packet.keycode[0]], input_row, input_col);
-	strcat(sent_msg,usb2s_ascii[packet.keycode[0]]);
-      }
-      else{
-        fbputchar(usb2ns_ascii[packet.keycode[0]], input_row, input_col);
-	strcat(sent_msg,usb2ns_ascii[packet.keycode[0]]);
-
-      }
-      input_col++; 
-      if (input_col == 64){//wrap around 
-	input_col = 0;
-        input_row++;
-      }
-      }
-      else if (packet.keycode[0] == 0){ //no event (displace space)
-        fbputchar(12, input_row,input_col);
-      }
-      else if (packet.keycode[0] == 42){ // delete
-        size_t length = strlen(sent_msg);
-	sent_msg(length-1) = '\O';
-	
-
-        fbputchar(' ', input_row, input_col);
-	input_col--;
-        if (input_col < 0) {
-          input_col = 63;
-          input_row--;
-          fbputchar(' ', input_row, input_col);
-        }
-      }
+     /* Wait for the network thread to finish */
+     pthread_join(network_thread, NULL);
+     return 0;
+  } 
 
  
-      if (packet.keycode[0] == 0x29) { /* ESC pressed? */
-	break;
-      }
-    }
-  }
-
-  /* Terminate the network thread */
-  pthread_cancel(network_thread);
-
-  /* Wait for the network thread to finish */
-  pthread_join(network_thread, NULL);
-
-  return 0;
 }
 
+
+//this will happen first since the server does display this first 
+// this should should be valid first 
 void *network_thread_f(void *ignored)
 {
+  pthread_mutex_lock(&disp_msg_mutex);
+  //valid is  0initally
+  while(valid) pthread_cond_wait(&cond0, &disp_msg_mutex); //relinquish control of mutex until cond1 is signaled
+  valid = 1;
   char recvBuf[BUFFER_SIZE];
   int n;
   /* Receive data */
@@ -195,8 +160,80 @@ void *network_thread_f(void *ignored)
     printf("%s", recvBuf);
     fbputs(recvBuf, received_row, 0); //draw given string recvBuf
   }
+  pthread_cond_signal(&cond1);
+  pthread_mutex_unlock(&disp_msg_mutex);
   received_row++;
   return NULL;
 }
 
 
+
+
+
+void *network_thread_type(void *ignored)
+{ 
+    libusb_interrupt_transfer(keyboard, endpoint_address,
+                              (unsigned char *) &packet, sizeof(packet),
+                              &transferred, 0);
+
+  if (transferred == sizeof(packet)) {
+      sprintf(keystate, "%08x %02x %02x", packet.modifiers, packet.keycode[0],
+              packet.keycode[1]);
+      printf("%s\n", keystate);
+      fbputs(keystate, 12, 0);
+
+        // single check for enter 
+     if (packet.keycode[0] == 0x28) {
+
+        while(!valid) pthread_cond_wait(&cond1, &disp_msg_mutex);
+        fbputs(sent_msg,received_row,0);
+        valid = 1;
+        pthread_cond_signal(&cond1);
+        ptread_mutex_unlock(&disp_msg_mutex);
+
+        sent_msg[BUFFER_SIZE] = '\O';
+        continue;
+     }
+
+
+
+      if (packet.keycode[0] != 0 && packet.keycode[0] != 42) { //button AND not delete
+        if (packet.modifiers == 0x02 || packet.modifiers == 0x20){ //shift
+         fbputchar(usb2s_ascii[packet.keycode[0]], input_row, input_col);
+         strcat(sent_msg,usb2s_ascii[packet.keycode[0]]);
+        }
+        else{
+         fbputchar(usb2ns_ascii[packet.keycode[0]], input_row, input_col);
+         strcat(sent_msg,usb2ns_ascii[packet.keycode[0]]);
+           }
+      input_col++;
+      if (input_col == 64){//wrap around 
+        input_col = 0;
+        input_row++;
+      }
+      } //end button and not delete if
+      else if (packet.keycode[0] == 0){ //no event (displace space)
+        fbputchar(12, input_row,input_col);
+      }
+      else if (packet.keycode[0] == 42){ // delete
+        size_t length = strlen(sent_msg);
+        sent_msg(length-1) = '\O';
+
+
+        fbputchar(' ', input_row, input_col);
+        input_col--;
+        if (input_col < 0) {
+          input_col = 63;
+          input_row--;
+          fbputchar(' ', input_row, input_col);
+        }
+      } //end delete if 
+
+
+     if (packet.keycode[0] == 0x29) { /* ESC pressed? */
+      	done = 1;
+	break;
+       } // for break statment 	
+    }//end of if (transferred == sizeof(packet)) 
+//return 1???
+} // end of network_thread_type
