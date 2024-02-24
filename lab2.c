@@ -23,53 +23,29 @@
 
 #define BUFFER_SIZE 128
 
-/*
- * References:
- *
- * https://web.archive.org/web/20130307100215/http://beej.us/guide/bgnet/output/html/singlepage/bgnet.html
- *
- * http://www.thegeekstuff.com/2011/12/c-socket-programming/
- * 
- */
-
 int sockfd; /* Socket file descriptor */
 
 struct libusb_device_handle *keyboard;
 uint8_t endpoint_address;
 
-
-const char usb2ns_ascii[57] = {0 , 0 , 0 , 0 ,'a','b','c','d','e','f','g','h','i','j','k',
-                              'l','m','n','o','p','q','r','s','t','u','v','w','x','y','z',
-                              '1','2','3','4','5','6','7','8','9','0', 0 , 0 , 0 ,'\t',' ',
-                              '-','=','[',']','\\',0 ,';','\'','`',',','.','/' };
-const char usb2s_ascii[57] =  {0 , 0 , 0 , 0 ,'A','B','C','D','E','F','G','H','I','J','K',
-                              'L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z',
-                              '!','@','#','$','%','^','&','*','(',')', 0 , 0 , 0 ,'\t',' ',
-                              '_','+','{','}','|', 0 ,':','\"','~','<','>','\?' };
-
-pthread_mutex_t disp_msg_mutex = PTHREAD_MUTEX_INITIALIZER; 
-pthread_cond_t cond1 = PTHREAD_COND_INITIALIZER; 
-pthread_cond_t cond0 = PTHREAD_COND_INITIALIZER;
-
-int valid = 0;
-int done = 0; //1 if true 
-
-pthread_t network_thread; // Allowcate space for network thread
+pthread_t network_thread, network_thread2;
 void *network_thread_f(void *);
-void *network_thread_type(void*); 
+void *network_thread_type(void*);
+pthread_mutex_t disp_msg_mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t cond1 = PTHREAD_COND_INITIALIZER;
+pthread_coun_t cond0 = PTHREAD_COND_INITIALIZER;
 
 int input_row = 17;
 int input_col = 0;
-
 int received_row = 1;
 int received_col = 0;
 
 
- int err, col;
- struct sockaddr_in serv_addr;
+int err, col;
+struct sockaddr_in serv_addr;
 
 struct usb_keyboard_packet packet;
-int transferred; 
+int transferred;
 char keystate[12];
 
 
@@ -77,22 +53,17 @@ char sent_msg[BUFFER_SIZE];
 
 
 
-int main()
+
+int valid = 0;
+int done = 0; //1 if true 
+
+
+int main() 
 {
-/*
-  int err, col;
 
-  struct sockaddr_in serv_addr;
 
-  struct usb_keyboard_packet packet;
-  int transferred;
-  char keystate[12];
-  
 
-  char sent_msg[BUFFER_SIZE];
-*/
-
-  if ((err = fbopen()) != 0) {
+   if ((err = fbopen()) != 0) {
     fprintf(stderr, "Error: Could not open framebuffer: %d\n", err);
     exit(1);
   }
@@ -100,7 +71,6 @@ int main()
   /* Draw rows of asterisks across the top and bottom of the screen */
   for (col = 0 ; col < 64 ; col++) {
     fbputchar('*', 0, col);
-    fbputchar('_',16, col); 
     fbputchar('*', 23, col);
   }
 
@@ -111,7 +81,7 @@ int main()
     fprintf(stderr, "Did not find a keyboard\n");
     exit(1);
   }
-    
+
   /* Create a TCP communications socket */
   if ( (sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0 ) {
     fprintf(stderr, "Error: Could not create socket\n");
@@ -136,62 +106,53 @@ int main()
   /* Start the network thread */
   //Sets up thread and starts runnning it in parallel
   // in this case run a function called network_thread_f (see below)
- 
+
   pthread_create(&network_thread, NULL, network_thread_f, NULL);
-  pthread_creat(&network_thread, NULL, network_thread_type, NULL);
+  pthread_create(&network_thread2, NULL, network_thread_type, NULL);
 
-  while(~done) ;
+  while(!done) {}
 
-  /* Look for and handle keypresses */
-  // this probably needs to be its own thread function (see recording near 50min
-  // 
-/*
-  for (;;) {
-    } // end of for(;;) loop
-*/
 
-   if(done == 1){
-    /* Terminate the network thread */
-     pthread_cancel(network_thread);
+  /* Terminate the network thread */
+  pthread_cancel(network_thread);
 
-     /* Wait for the network thread to finish */
-     pthread_join(network_thread, NULL);
-     return 0;
-  } 
+  /* Wait for the network thread to finish */
+  pthread_join(network_thread, NULL);
 
- 
-}
+  return 0;
 
- 
-//this will happen first since the server does display this first 
-// this should should be valid first 
+}//end of main
+
+
+
+
 void *network_thread_f(void *ignored)
 {
   pthread_mutex_lock(&disp_msg_mutex);
-  //valid is  0initally
-  while(valid) pthread_cond_wait(&cond0, &disp_msg_mutex); //relinquish control of mutex until cond1 is signaled
+  //valid is zero initally
+  while(valid) pthread_cond_wait(&cond0, &disp_msg_mutex); //relinquish control of mutex until cond0 is signaled
   valid = 1;
+
+
   char recvBuf[BUFFER_SIZE];
   int n;
   /* Receive data */
   while ( (n = read(sockfd, &recvBuf, BUFFER_SIZE - 1)) > 0 ) {
     recvBuf[n] = '\0';
     printf("%s", recvBuf);
-    fbputs(recvBuf, received_row, 0); //draw given string recvBuf
+    fbputs(recvBuf, 8, 0);
   }
   pthread_cond_signal(&cond1);
   pthread_mutex_unlock(&disp_msg_mutex);
   received_row++;
+ 
   return NULL;
 }
 
 
-
-
-
 void *network_thread_type(void *ignored)
-{ 
-    libusb_interrupt_transfer(keyboard, endpoint_address,
+{
+  libusb_interrupt_transfer(keyboard, endpoint_address,
                               (unsigned char *) &packet, sizeof(packet),
                               &transferred, 0);
 
@@ -204,17 +165,17 @@ void *network_thread_type(void *ignored)
         // single check for enter 
      if (packet.keycode[0] == 0x28) {
 
-       while(!valid) pthread_cond_wait(&cond1, &disp_msg_mutex);
+        while(!valid) pthread_cond_wait(&cond1, &disp_msg_mutex);
         fbputs(sent_msg,received_row,0);
         valid = 1;
         pthread_cond_signal(&cond1);
         ptread_mutex_unlock(&disp_msg_mutex);
+         
+	write(sockfd,&sent_msg,BUFFER_SIZE-1);
 
         sent_msg[BUFFER_SIZE] = "\0";
- 
-     }
-
-
+        
+     }else{
 
       if (packet.keycode[0] != 0 && packet.keycode[0] != 42) { //button AND not delete
         if (packet.modifiers == 0x02 || packet.modifiers == 0x20){ //shift
@@ -247,14 +208,24 @@ void *network_thread_type(void *ignored)
           fbputchar(' ', input_row, input_col);
         }
       } //end delete if 
-
+	
+     }//end of enter if else block 
 
      if (packet.keycode[0] == 0x29) { /* ESC pressed? */
-      	done = 1;
+        done = 1;
        } // for break statment
      else{
         done = 0;
-     }     
+     }
     }//end of if (transferred == sizeof(packet)) 
-//return 1???
-} // end of network_thread_type
+
+
+
+
+ return NULL;
+}
+
+
+
+
+
