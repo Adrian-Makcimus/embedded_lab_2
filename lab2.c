@@ -139,13 +139,10 @@ int main()
 
 void *network_thread_f(void *ignored)
 {
- 
-printf('thread_f %s' , valid);
+ do{
  pthread_mutex_lock(&disp_msg_mutex);
   //valid is zero initally
- valid = 0;  
-while(valid){
-  pthread_cond_wait(&cond0, &disp_msg_mutex);}
+  while(valid){ pthread_cond_wait(&cond0, &disp_msg_mutex);}
 
  //relinquish control of mutex until cond0 is signaled
   valid = 1;
@@ -156,18 +153,19 @@ while(valid){
   /* Receive data */
   while ( (n = read(sockfd, &recvBuf, BUFFER_SIZE - 1)) > 0 ) {
     recvBuf[n] = '\0';
-    printf("%s", recvBuf);
+    printf(" %s", recvBuf);
     fbputs(recvBuf, 8, 0);
   }
   received_row++;
   pthread_cond_signal(&cond1);
-  pthread_mutex_unlock(&disp_msg_mutex);
+  pthread_mutex_unlock(&disp_msg_mutex); } while(!done);
   return NULL;
 }
 
 
 void *network_thread_type(void *ignored)
 {
+while(!done){
   libusb_interrupt_transfer(keyboard, endpoint_address,
                               (unsigned char *) &packet, sizeof(packet),
                               &transferred, 0);
@@ -181,27 +179,27 @@ void *network_thread_type(void *ignored)
         // single check for enter 
      if (packet.keycode[0] == 0x28) {
 	pthread_mutex_lock(&disp_msg_mutex);
-        valid = 1;
 	while(!valid) pthread_cond_wait(&cond1, &disp_msg_mutex);
         fbputs(sent_msg,received_row,0);
-        valid = 0;
-        pthread_cond_signal(&cond0);
-        pthread_mutex_unlock(&disp_msg_mutex);
-         
-	write(sockfd,&sent_msg,BUFFER_SIZE-1);
+        valid = 1;
+	write(sockfd, &sent_msg, BUFFER_SIZE-1);
+	pthread_cond_signal(&cond0);
+   
 
-        sent_msg[BUFFER_SIZE] = "\0";
-        
+        sent_msg[BUFFER_SIZE-1] = "\0";
+        pthread_mutex_unlock(&disp_msg_mutex);
+
+ 
      }else{
 
       if (packet.keycode[0] != 0 && packet.keycode[0] != 42) { //button AND not delete
         if (packet.modifiers == 0x02 || packet.modifiers == 0x20){ //shift
          fbputchar(usb2s_ascii[packet.keycode[0]], input_row, input_col);
-         strcat(sent_msg,usb2s_ascii[packet.keycode[0]]);
+       //  strcat(sent_msg,usb2s_ascii[packet.keycode[0]]);
         }
         else{
          fbputchar(usb2ns_ascii[packet.keycode[0]], input_row, input_col);
-         strcat(sent_msg,usb2ns_ascii[packet.keycode[0]]);
+      //   strcat(sent_msg,usb2ns_ascii[packet.keycode[0]]);
            }
       input_col++;
       if (input_col == 64){//wrap around 
@@ -214,7 +212,7 @@ void *network_thread_type(void *ignored)
       }
       else if (packet.keycode[0] == 42){ // delete
         size_t length = strlen(sent_msg);
-        sent_msg[length-1] = "\0";
+       // sent_msg[length-1] = "\0";
 
 
         fbputchar(' ', input_row, input_col);
@@ -238,7 +236,7 @@ void *network_thread_type(void *ignored)
 
 
 
-
+	}
  return NULL;
 }
 
