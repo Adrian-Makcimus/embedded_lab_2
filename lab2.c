@@ -49,7 +49,7 @@ const char usb2s_ascii[57] =  {0 , 0 , 0 , 0 ,'A','B','C','D','E','F','G','H','I
 
 pthread_mutex_t disp_msg_mutex = PTHREAD_MUTEX_INITIALIZER; 
 pthread_cond_t cond1 = PTHREAD_COND_INITIALIZER; 
-pthread_coun_t cond0 = PTHREAD_COND_INITIALIZER;
+pthread_cond_t cond0 = PTHREAD_COND_INITIALIZER;
 
 int valid = 0;
 int done = 0; //1 if true 
@@ -162,7 +162,7 @@ int main()
  
 }
 
-
+ 
 //this will happen first since the server does display this first 
 // this should should be valid first 
 void *network_thread_f(void *ignored)
@@ -204,14 +204,14 @@ void *network_thread_type(void *ignored)
         // single check for enter 
      if (packet.keycode[0] == 0x28) {
 
-        while(!valid) pthread_cond_wait(&cond1, &disp_msg_mutex);
+       while(!valid) pthread_cond_wait(&cond1, &disp_msg_mutex);
         fbputs(sent_msg,received_row,0);
         valid = 1;
         pthread_cond_signal(&cond1);
         ptread_mutex_unlock(&disp_msg_mutex);
 
         sent_msg[BUFFER_SIZE] = "\0";
-        continue;
+ 
      }
 
 
