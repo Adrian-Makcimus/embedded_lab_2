@@ -191,7 +191,7 @@ void *network_thread_type(void *ignored)
         pthread_cond_signal(&cond1);
         ptread_mutex_unlock(&disp_msg_mutex);
 
-        sent_msg[BUFFER_SIZE] = '\O';
+        sent_msg[BUFFER_SIZE] = "\0";
         continue;
      }
 
@@ -217,7 +217,7 @@ void *network_thread_type(void *ignored)
       }
       else if (packet.keycode[0] == 42){ // delete
         size_t length = strlen(sent_msg);
-        sent_msg(length-1) = '\O';
+        sent_msg(length-1) = "\0";
 
 
         fbputchar(' ', input_row, input_col);
@@ -232,8 +232,10 @@ void *network_thread_type(void *ignored)
 
      if (packet.keycode[0] == 0x29) { /* ESC pressed? */
       	done = 1;
-	break;
-       } // for break statment 	
+       } // for break statment
+     else{
+        done = 0;
+     }     
     }//end of if (transferred == sizeof(packet)) 
 //return 1???
 } // end of network_thread_type
