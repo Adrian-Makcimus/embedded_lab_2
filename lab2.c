@@ -33,7 +33,7 @@ void *network_thread_f(void *);
 void *network_thread_type(void*);
 pthread_mutex_t disp_msg_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t cond1 = PTHREAD_COND_INITIALIZER;
-pthread_coun_t cond0 = PTHREAD_COND_INITIALIZER;
+pthread_cond_t cond0 = PTHREAD_COND_INITIALIZER;
 
 int input_row = 17;
 int input_col = 0;
@@ -56,6 +56,17 @@ char sent_msg[BUFFER_SIZE];
 
 int valid = 0;
 int done = 0; //1 if true 
+
+
+
+const char usb2ns_ascii[57] = {0 , 0 , 0 , 0 ,'a','b','c','d','e','f','g','h','i','j','k',
+                              'l','m','n','o','p','q','r','s','t','u','v','w','x','y','z',
+                              '1','2','3','4','5','6','7','8','9','0', 0 , 0 , 0 ,'\t',' ',
+                              '-','=','[',']','\\',0 ,';','\'','`',',','.','/' };
+const char usb2s_ascii[57] =  {0 , 0 , 0 , 0 ,'A','B','C','D','E','F','G','H','I','J','K',
+                              'L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z',
+                              '!','@','#','$','%','^','&','*','(',')', 0 , 0 , 0 ,'\t',' ',
+                              '_','+','{','}','|', 0 ,':','\"','~','<','>','\?' };
 
 
 int main() 
@@ -128,9 +139,15 @@ int main()
 
 void *network_thread_f(void *ignored)
 {
-  pthread_mutex_lock(&disp_msg_mutex);
+ 
+printf('thread_f %s' , valid);
+ pthread_mutex_lock(&disp_msg_mutex);
   //valid is zero initally
-  while(valid) pthread_cond_wait(&cond0, &disp_msg_mutex); //relinquish control of mutex until cond0 is signaled
+ valid = 0;  
+while(valid){
+  pthread_cond_wait(&cond0, &disp_msg_mutex);}
+
+ //relinquish control of mutex until cond0 is signaled
   valid = 1;
 
 
@@ -142,10 +159,9 @@ void *network_thread_f(void *ignored)
     printf("%s", recvBuf);
     fbputs(recvBuf, 8, 0);
   }
+  received_row++;
   pthread_cond_signal(&cond1);
   pthread_mutex_unlock(&disp_msg_mutex);
-  received_row++;
- 
   return NULL;
 }
 
@@ -164,12 +180,13 @@ void *network_thread_type(void *ignored)
 
         // single check for enter 
      if (packet.keycode[0] == 0x28) {
-
-        while(!valid) pthread_cond_wait(&cond1, &disp_msg_mutex);
-        fbputs(sent_msg,received_row,0);
+	pthread_mutex_lock(&disp_msg_mutex);
         valid = 1;
-        pthread_cond_signal(&cond1);
-        ptread_mutex_unlock(&disp_msg_mutex);
+	while(!valid) pthread_cond_wait(&cond1, &disp_msg_mutex);
+        fbputs(sent_msg,received_row,0);
+        valid = 0;
+        pthread_cond_signal(&cond0);
+        pthread_mutex_unlock(&disp_msg_mutex);
          
 	write(sockfd,&sent_msg,BUFFER_SIZE-1);
 
@@ -226,29 +243,4 @@ void *network_thread_type(void *ignored)
 }
 
 
-
-
-void *writeCounter() {
- int i;
- for (i = 0 ; i < 10 ; i++) {
-   pthread_mutex_lock(&mutex1);
-     while (valid) pthread_cond_wait(&cond1, &mutex1);
-  count = i; valid = 1;
-  pthread_cond_signal(&cond1);
-  pthread_mutex_unlock(&mutex1);
-  }
-  return NULL; }
-
-void *readCounter() {
- int done1 = 0;
- do {
-    pthread_mutex_lock(&mutex1);
-    while (!valid2) pthread_cond_wait(&cond3, &mutex1);
-    printf("%d\n", count);
-    valid = 0; done1 = count == 9;
-    pthread_cond_signal(&cond1);
-    pthread_mutex_unlock(&mutex1);
- } while (!done2);
-
- return NULL; }
 
