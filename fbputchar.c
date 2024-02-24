@@ -107,10 +107,12 @@ void fb_scroll(int msglen) {
     int rows = msglen / 64;
     unsigned char *framebuffer2 = calloc(fb_finfo.smem_len, sizeof('a'));
     unsigned char *framebuffer_scroll = framebuffer+(rows * FONT_HEIGHT * 2 + fb_vinfo.yoffset) * fb_finfo.line_length; 
-    size_t middle_section = sizeof(framebuffer - (rows * FONT_HEIGHT * 2 + fb_vinfo.yoffset) * fb_finfo.line_length -
-						 (3 * FONT_HEIGHT * 2 + fb_vinfo.yoffset) * fb_finfo.line_length);
-    memcpy(framebuffer_scroll, framebuffer2, middle_section);
-    memcpy(framebuffer2, framebuffer, middle_section);    
+    size_t middle_section = fb_finfo.smem_len - ((rows * FONT_HEIGHT * 2 + fb_vinfo.yoffset) * fb_finfo.line_length) -
+						 ((3 * FONT_HEIGHT * 2 + fb_vinfo.yoffset) * fb_finfo.line_length);
+    size_t other_section =  fb_finfo.smem_len -((3 * FONT_HEIGHT * 2 + fb_vinfo.yoffset) * fb_finfo.line_length);
+
+    memcpy(framebuffer2, framebuffer_scroll, middle_section);
+    memcpy(framebuffer, framebuffer2, other_section);    
     free(framebuffer2);
 }
 
@@ -118,7 +120,7 @@ void clear_framebuff(int rowstart, int colstart) {
     unsigned char *framebuffer_start = framebuffer +
     (rowstart * FONT_HEIGHT * 2 + fb_vinfo.yoffset) * fb_finfo.line_length;
 
-    size_t middle_section = sizeof(framebuffer) - ((rowstart * FONT_HEIGHT * 2 + fb_vinfo.yoffset) * fb_finfo.line_length);
+    size_t middle_section = fb_finfo.smem_len - ((rowstart * FONT_HEIGHT * 2 + fb_vinfo.yoffset) * fb_finfo.line_length);
 
     memset(framebuffer_start, 0, middle_section);
 }
