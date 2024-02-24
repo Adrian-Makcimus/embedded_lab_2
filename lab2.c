@@ -228,4 +228,27 @@ void *network_thread_type(void *ignored)
 
 
 
+void *writeCounter() {
+ int i;
+ for (i = 0 ; i < 10 ; i++) {
+   pthread_mutex_lock(&mutex1);
+     while (valid) pthread_cond_wait(&cond1, &mutex1);
+  count = i; valid = 1;
+  pthread_cond_signal(&cond1);
+  pthread_mutex_unlock(&mutex1);
+  }
+  return NULL; }
+
+void *readCounter() {
+ int done1 = 0;
+ do {
+    pthread_mutex_lock(&mutex1);
+    while (!valid2) pthread_cond_wait(&cond3, &mutex1);
+    printf("%d\n", count);
+    valid = 0; done1 = count == 9;
+    pthread_cond_signal(&cond1);
+    pthread_mutex_unlock(&mutex1);
+ } while (!done2);
+
+ return NULL; }
 
