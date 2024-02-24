@@ -66,7 +66,7 @@ int main()
   int message_col = 0;
   char sendBuf[BUFFER_SIZE];
 
-  memset(sendBuf, ' ', sizeof(sendBuf));
+  memset(sendBuf, ' ', BUFFER_SIZE);
 
   if ((err = fbopen()) != 0) {
     fprintf(stderr, "Error: Could not open framebuffer: %d\n", err);
@@ -124,11 +124,13 @@ int main()
       if (packet.keycode[0] != 0 && packet.keycode[0] != 42 && packet.keycode[0] != 40) {
       if (packet.modifiers == 0x02 || packet.modifiers == 0x20){
         fbputchar(usb2s_ascii[packet.keycode[0]], input_row, input_col);
-        sendBuf[(input_row-22)*64+input_col] = usb2s_ascii[packet.keycode[0]];
+        int idx = (input_row - 22)*64+input_col;
+        sendBuf[idx] = usb2s_ascii[packet.keycode[0]];
       }
       else{
         fbputchar(usb2ns_ascii[packet.keycode[0]], input_row, input_col);
-        sendBuf[(input_row-22)*64+input_col] = usb2ns_ascii[packet.keycode[0]];
+        int idx = (input_row - 22)*64+input_col;
+        sendBuf[idx] = usb2ns_ascii[packet.keycode[0]];
       }
       input_col++;
       if (input_col == 64){
