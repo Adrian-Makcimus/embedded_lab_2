@@ -150,7 +150,7 @@ int main()
         }
       }
      else if (packet.keycode[0] == 40) {
-	clear_framebuff(22, 0);
+	    clear_framebuff(22, 0);
         input_row = 22;
         input_col =0;
         for (int i = 0; i < BUFFER_SIZE; i++) {

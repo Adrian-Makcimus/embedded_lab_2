@@ -116,13 +116,9 @@ void fb_scroll(int msglen) {
 
 void clear_framebuff(int rowstart, int colstart) {
     unsigned char *framebuffer_start = framebuffer +
-    (rowstart * FONT_HEIGHT * 2 + fb_vinfo.yoffset) * fb_finfo.line_length +
-    (colstart * FONT_WIDTH * 2 + fb_vinfo.xoffset) * BITS_PER_PIXEL / 8;
+    (rowstart * FONT_HEIGHT * 2 + fb_vinfo.yoffset) * fb_finfo.line_length;
 
-    printf("%d\n", fb_finfo.smem_len);
-    printf("%d\n", framebuffer_start-framebuffer);
-    size_t middle_section = sizeof(framebuffer) - (rowstart * FONT_HEIGHT * 2 + fb_vinfo.yoffset) * fb_finfo.line_length +
-    (colstart * FONT_WIDTH * 2 + fb_vinfo.xoffset) * BITS_PER_PIXEL / 8;
+    size_t middle_section = sizeof(framebuffer) - ((rowstart * FONT_HEIGHT * 2 + fb_vinfo.yoffset) * fb_finfo.line_length);
 
     memset(framebuffer_start, 0, middle_section);
 }
