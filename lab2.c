@@ -51,19 +51,22 @@ char usb2s_ascii[57] =  {0 , 0 , 0 , 0 ,'A','B','C','D','E','F','G','H','I','J',
 void backspace_buffer(char *buf, int size, int idx) {
   char *buf2 = malloc(size);
   for (int i = 0; i < idx; i++) {
-    buf2[i] = buf[i];
-    printf("%c,",buf[i]);
+    buf2[i] = buf[i];;
   }
   for (int i = idx; i < size-1; i++) {
     buf2[i] = buf[i+1];
-    printf("%c,",buf[i]);
   }
   buf2[size-1] = '\0';
   memcpy(buf, buf2, size);
   free(buf2);
 }
 
-void insert_buffer() {
+void insert_buffer(char *buf, int size, int idx, char c) {
+  char *buf2 = malloc(size);
+  for (int i = 0; i < idx; i++) {
+    buf2[i] = buf[i];
+  }
+  buf
 }
 
 
@@ -254,8 +257,7 @@ int main()
 	    }
             
         }
-      memset(sendBuf, '\0', BUFFER_SIZE);
-        
+      memset(sendBuf, '\0', BUFFER_SIZE); 
      }
      changed = 0;
      
