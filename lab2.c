@@ -104,7 +104,7 @@ int main()
     fbputchar('_', 21, col); 
   }
 
-  fbputs("Hello CSEE 4840 World!", 4, 10);
+//  fbputs("Hello CSEE 4840 World!", 4, 10);
 
   /* Open the keyboard */
   if ( (keyboard = openkeyboard(&endpoint_address)) == NULL ) {
@@ -135,7 +135,7 @@ int main()
 
   /* Start the network thread */
   pthread_create(&network_thread, NULL, network_thread_f, NULL);
-  pthread_create(&network_thread2, NULL, network_thread_type, NULL);
+  pthread_create(&network_thread, NULL, network_thread_type, NULL);
 
   /*
   / Look for and handle keypresses /
@@ -218,13 +218,13 @@ int main()
 
   /* Wait for the network thread to finish */
   pthread_join(network_thread, NULL);
-
+ printf("Done");
   return 0;
 }
 
 void *network_thread_f(void *ignored)
 {
- do{
+do{
  pthread_mutex_lock(&disp_msg_mutex);
   //valid is zero initally
   while(valid){ pthread_cond_wait(&cond0, &disp_msg_mutex);}
@@ -243,7 +243,7 @@ void *network_thread_f(void *ignored)
   }
   message_row++;
   pthread_cond_signal(&cond1);
-  pthread_mutex_unlock(&disp_msg_mutex); } while(!done);
+  pthread_mutex_unlock(&disp_msg_mutex);}while(!done);
   return NULL;
 
 }
@@ -252,7 +252,7 @@ void *network_thread_f(void *ignored)
 
 void *network_thread_type(void *ignored)
 {
-while(!done) {
+while(!done){
 	   libusb_interrupt_transfer(keyboard, endpoint_address,
                               (unsigned char *) &packet, sizeof(packet),
                               &transferred, 0);
@@ -297,7 +297,7 @@ while(!done) {
 	pthread_mutex_lock(&disp_msg_mutex);
 	while(!valid) pthread_cond_wait(&cond1, &disp_msg_mutex);
 
-	valid = 1;
+	valid = 0;
 
         clear_framebuff(22, 0);
         input_row = 22;
@@ -319,7 +319,7 @@ while(!done) {
 
         }
 	
-		write(sockfd, &sendBuf, BUFFER_SIZE-1);
+//		write(sockfd, &sendBuf, BUFFER_SIZE-1);
 		pthread_cond_signal(&cond0);
 	        pthread_mutex_unlock(&disp_msg_mutex);
      } // end enter
@@ -330,5 +330,5 @@ while(!done) {
       } 
     }//
 	
-	} 
+} 
 }
