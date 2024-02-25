@@ -38,11 +38,11 @@ struct libusb_device_handle *keyboard;
 uint8_t endpoint_address;
 
 
-const char usb2ns_ascii[57] = {0 , 0 , 0 , 0 ,'a','b','c','d','e','f','g','h','i','j','k',
+char usb2ns_ascii[57] = {0 , 0 , 0 , 0 ,'a','b','c','d','e','f','g','h','i','j','k',
                               'l','m','n','o','p','q','r','s','t','u','v','w','x','y','z',
                               '1','2','3','4','5','6','7','8','9','0', 0 , 0 , 0 ,'\t',' ',
                               '-','=','[',']','\\',0 ,';','\'','`',',','.','/' };
-const char usb2s_ascii[57] =  {0 , 0 , 0 , 0 ,'A','B','C','D','E','F','G','H','I','J','K',
+char usb2s_ascii[57] =  {0 , 0 , 0 , 0 ,'A','B','C','D','E','F','G','H','I','J','K',
                               'L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z',
                               '!','@','#','$','%','^','&','*','(',')', 0 , 0 , 0 ,'\t',' ',
                               '_','+','{','}','|', 0 ,':','\"','~','<','>','\?' };
@@ -64,14 +64,14 @@ int main()
   int input_col = 0;
   int message_row = 9;
   int message_col = 0;
-  char sendBuf[BUFFER_SIZE];
-
-  memset(sendBuf, ' ', BUFFER_SIZE);
-
+  char *sendBuf = calloc(BUFFER_SIZE, sizeof('a'));
+ 
   if ((err = fbopen()) != 0) {
     fprintf(stderr, "Error: Could not open framebuffer: %d\n", err);
     exit(1);
   }
+
+  clear_framebuff(0,0);
 
   /* Draw rows of asterisks across the top and bottom of the screen */
   for (col = 0 ; col < 64 ; col++) {
@@ -110,29 +110,40 @@ int main()
   /* Start the network thread */
   pthread_create(&network_thread, NULL, network_thread_f, NULL);
 
+  memset(sendBuf, ' ', BUFFER_SIZE);
+
   /* Look for and handle keypresses */
   for (;;) {
     libusb_interrupt_transfer(keyboard, endpoint_address,
 			      (unsigned char *) &packet, sizeof(packet),
 			      &transferred, 0);
-  
+
   if (transferred == sizeof(packet)) {
+      //for (int i = 0; i < BUFFER_SIZE; i++){
+        //printf("%c%d,",sendBuf[i],i);
+      //}      
+      //printf("\n");
+
       sprintf(keystate, "%08x %02x %02x", packet.modifiers, packet.keycode[0],
 	      packet.keycode[1]);
       printf("%s\n", keystate);
-      //fbputs(keystate, 12, 0);
+      //printf("%d%d%d%d\n",packet.keycode[2], packet.keycode[3],packet.keycode[4],packet.keycode[5]);
+
       if (packet.keycode[0] != 0 && packet.keycode[0] != 42 && packet.keycode[0] != 40) {
       if (packet.modifiers == 0x02 || packet.modifiers == 0x20){
         fbputchar(usb2s_ascii[packet.keycode[0]], input_row, input_col);
         int idx = (input_row - 22)*64+input_col;
         sendBuf[idx] = usb2s_ascii[packet.keycode[0]];
+        printf("%c%d\n", sendBuf[idx], idx);
       }
       else{
         fbputchar(usb2ns_ascii[packet.keycode[0]], input_row, input_col);
         int idx = (input_row - 22)*64+input_col;
+        //sendBuf[idx] = usb2s_ascii[packet.keycode[0]];
         sendBuf[idx] = usb2ns_ascii[packet.keycode[0]];
+	printf("%c%d%d\n", sendBuf[idx], idx, sizeof(sendBuf[idx]));
       }
-      input_col++;
+      input_col = input_col + 1;
       if (input_col == 64){
 	input_col = 0;
         input_row++;
@@ -140,6 +151,7 @@ int main()
       }
       else if (packet.keycode[0] == 0){
         fbputchar(12, input_row,input_col);
+        printf("Here\n");
       }
       else if (packet.keycode[0] == 42){
         fbputchar(' ', input_row, input_col);
@@ -161,9 +173,9 @@ int main()
                message_row = 19;	
             }
             if (sendBuf[i] != ' ') {
-              printf("%c\n",sendBuf[i]);
+              printf("%c%d\n",sendBuf[i], i);
            }
-           fbputchar(sendBuf[i], message_row, message_col);
+          fbputchar(sendBuf[i], message_row, message_col);
 	   message_col++;
 	    if (message_col == 64){
 		message_col = 0;
@@ -171,6 +183,7 @@ int main()
 	    }
             
         }
+      memset(sendBuf, ' ', BUFFER_SIZE);
         
      }
 
