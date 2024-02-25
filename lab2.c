@@ -48,6 +48,26 @@ char usb2s_ascii[57] =  {0 , 0 , 0 , 0 ,'A','B','C','D','E','F','G','H','I','J',
                               '_','+','{','}','|', 0 ,':','\"','~','<','>','\?' };
 
 
+void backspace_buffer(char *buf, int size, int idx) {
+  char *buf2 = malloc(size);
+  for (int i = 0; i < idx; i++) {
+    buf2[i] = buf[i];
+    printf("%c,",buf[i]);
+  }
+  for (int i = idx; i < size-1; i++) {
+    buf2[i] = buf[i+1];
+    printf("%c,",buf[i]);
+  }
+  buf2[size-1] = '\0';
+  memcpy(buf, buf2, size);
+  free(buf2);
+}
+
+void insert_buffer() {
+}
+
+
+
 pthread_t network_thread;
 void *network_thread_f(void *);
 
@@ -64,7 +84,7 @@ int main()
   int input_col = 0;
   int message_row = 9;
   int message_col = 0;
-  char *sendBuf = calloc(BUFFER_SIZE, sizeof('a'));
+  char *sendBuf = malloc(BUFFER_SIZE);
  
   if ((err = fbopen()) != 0) {
     fprintf(stderr, "Error: Could not open framebuffer: %d\n", err);
@@ -110,7 +130,11 @@ int main()
   /* Start the network thread */
   pthread_create(&network_thread, NULL, network_thread_f, NULL);
 
-  memset(sendBuf, ' ', BUFFER_SIZE);
+  memset(sendBuf, '\0', BUFFER_SIZE);
+
+  uint8_t old_keys[] = {0, 0, 0, 0, 0, 0};
+  int keyidx = 0;
+  int changed = 0;
 
   /* Look for and handle keypresses */
   for (;;) {
@@ -119,51 +143,66 @@ int main()
 			      &transferred, 0);
 
   if (transferred == sizeof(packet)) {
-      //for (int i = 0; i < BUFFER_SIZE; i++){
-        //printf("%c%d,",sendBuf[i],i);
-      //}      
-      //printf("\n");
 
       sprintf(keystate, "%08x %02x %02x", packet.modifiers, packet.keycode[0],
 	      packet.keycode[1]);
       printf("%s\n", keystate);
-      //printf("%d%d%d%d\n",packet.keycode[2], packet.keycode[3],packet.keycode[4],packet.keycode[5]);
 
-      if (packet.keycode[0] != 0 && packet.keycode[0] != 42 && packet.keycode[0] != 40) {
-      if (packet.modifiers == 0x02 || packet.modifiers == 0x20){
-        fbputchar(usb2s_ascii[packet.keycode[0]], input_row, input_col);
-        int idx = (input_row - 22)*64+input_col;
-        sendBuf[idx] = usb2s_ascii[packet.keycode[0]];
-        printf("%c%d\n", sendBuf[idx], idx);
+      for (int i = 0; i < 6; i++) {
+	if (old_keys[i] != packet.keycode[i]) {
+           keyidx = i;
+           changed = 1;
+           old_keys[i] = packet.keycode[i];
+        }
       }
-      else{
-        fbputchar(usb2ns_ascii[packet.keycode[0]], input_row, input_col);
-        int idx = (input_row - 22)*64+input_col;
-        //sendBuf[idx] = usb2s_ascii[packet.keycode[0]];
-        sendBuf[idx] = usb2ns_ascii[packet.keycode[0]];
-	printf("%c%d%d\n", sendBuf[idx], idx, sizeof(sendBuf[idx]));
+
+      if (changed && packet.keycode[keyidx] != 0 && packet.keycode[keyidx] != 42 && packet.keycode[keyidx] != 40 && 
+          packet.keycode[keyidx] != 79 && packet.keycode[keyidx] != 80) {
+        if (packet.modifiers == 0x02 || packet.modifiers == 0x20){
+          fbputinvertchar(usb2s_ascii[packet.keycode[keyidx]], input_row, input_col);
+          int idx = (input_row - 22)*64+input_col;
+          sendBuf[idx] = usb2s_ascii[packet.keycode[keyidx]];
+          printf("%c%d\n", sendBuf[idx], idx);
+        }
+        else{
+          fbputchar(usb2ns_ascii[packet.keycode[keyidx]], input_row, input_col);
+          int idx = (input_row - 22)*64+input_col;
+          sendBuf[idx] = usb2ns_ascii[packet.keycode[keyidx]];
+	  printf("%c%d%d\n", sendBuf[idx], idx, sizeof(sendBuf[idx]));
+        }
+        input_col = input_col + 1;
+        if (input_col == 64){
+	  input_col = 0;
+          input_row++;
+        }
       }
-      input_col = input_col + 1;
-      if (input_col == 64){
-	input_col = 0;
-        input_row++;
-      }
-      }
-      else if (packet.keycode[0] == 0){
+      else if (changed && packet.keycode[keyidx] == 0){
         fbputchar(12, input_row,input_col);
-        printf("Here\n");
       }
-      else if (packet.keycode[0] == 42){
-        fbputchar(' ', input_row, input_col);
-        sendBuf[input_row*64+input_col] = 0;
-	input_col--;
+      else if (changed && packet.keycode[keyidx] == 42 && !(input_col == 0 && input_row == 0)){
+      	fbputchar(' ', input_row, input_col);
+        input_col--;
         if (input_col < 0) {
           input_col = 63;
           input_row--;
           fbputchar(' ', input_row, input_col);
         }
-      }
-     else if (packet.keycode[0] == 40) {
+        backspace_buffer(sendBuf, BUFFER_SIZE, (input_row-22)*64+input_col);
+
+     }
+     else if (changed && packet.keycode[keyidx] == 79) { //right arrow
+
+     }
+     else if (changed && packet.keycode[keyidx] == 80  && !(input_col == 0 && input_row == 0)) { //left arrow
+        input_col--;
+        if (input_col < 0) {
+          input_col = 63;
+          input_row--;
+          fbputchar(' ', input_row, input_col);
+        }
+  
+     }
+     else if (changed && packet.keycode[keyidx] == 40) {
 	clear_framebuff(22, 0);
         input_row = 22;
         input_col =0;
@@ -175,7 +214,10 @@ int main()
             if (sendBuf[i] != ' ') {
               printf("%c%d\n",sendBuf[i], i);
            }
-          fbputchar(sendBuf[i], message_row, message_col);
+           if (sendBuf[i] == '\0') {
+	      sendBuf[i] = ' ';
+           }
+           fbputchar(sendBuf[i], message_row, message_col);
 	   message_col++;
 	    if (message_col == 64){
 		message_col = 0;
@@ -186,17 +228,19 @@ int main()
       memset(sendBuf, ' ', BUFFER_SIZE);
         
      }
-
- 
-      if (packet.keycode[0] == 0x29) { /* ESC pressed? */
+     changed = 0;
+     
+      if (packet.keycode[keyidx] == 0x29) { /* ESC pressed? */
 	break;
       }
     }
   }
-
+  
+  free(sendBuf);
+  
   /* Terminate the network thread */
   pthread_cancel(network_thread);
-
+  
   /* Wait for the network thread to finish */
   pthread_join(network_thread, NULL);
 
@@ -216,4 +260,5 @@ void *network_thread_f(void *ignored)
 
   return NULL;
 }
+
 

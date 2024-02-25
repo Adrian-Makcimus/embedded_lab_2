@@ -9,6 +9,7 @@
 
 extern int fbopen(void);
 extern void fbputchar(char, int, int);
+extern void fbputinvertchar(char, int, int);
 extern void fbputs(const char *, int, int);
 extern void clear_framebuff(int, int);
 extern void fb_scroll(int);
