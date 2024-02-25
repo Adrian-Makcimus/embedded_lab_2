@@ -48,11 +48,18 @@ const char usb2s_ascii[57] =  {0 , 0 , 0 , 0 ,'A','B','C','D','E','F','G','H','I
                               '_','+','{','}','|', 0 ,':','\"','~','<','>','\?' };
 
 
-pthread_t network_thread;
+pthread_t network_thread, network_thread2;
 void *network_thread_f(void *);
+void *network_thread_type(void*);
+pthread_mutex_t disp_msg_mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t cond1 = PTHREAD_COND_INITIALIZER;
+pthread_cond_t cond0 = PTHREAD_COND_INITIALIZER;
 
-int main()
-{
+
+int valid = 0;
+int done = 0; //1 if true 
+
+
   int err, col;
 
   struct sockaddr_in serv_addr;
@@ -65,6 +72,25 @@ int main()
   int message_row = 9;
   int message_col = 0;
   char sendBuf[BUFFER_SIZE];
+
+
+int main()
+{
+/*
+   int err, col;
+
+  struct sockaddr_in serv_addr;
+
+  struct usb_keyboard_packet packet;
+  int transferred;
+  char keystate[12];
+  int input_row = 22;
+  int input_col = 0;
+  int message_row = 9;
+  int message_col = 0;
+  char sendBuf[BUFFER_SIZE];
+*/
+
 
   memset(sendBuf, ' ', BUFFER_SIZE);
 
@@ -109,8 +135,10 @@ int main()
 
   /* Start the network thread */
   pthread_create(&network_thread, NULL, network_thread_f, NULL);
+  pthread_create(&network_thread2, NULL, network_thread_type, NULL);
 
-  /* Look for and handle keypresses */
+  /*
+  / Look for and handle keypresses /
   for (;;) {
     libusb_interrupt_transfer(keyboard, endpoint_address,
 			      (unsigned char *) &packet, sizeof(packet),
@@ -150,7 +178,7 @@ int main()
           input_row--;
           fbputchar(' ', input_row, input_col);
         }
-      }
+      } //
      else if (packet.keycode[0] == 40) {
 	clear_framebuff(22, 0);
         input_row = 22;
@@ -175,11 +203,15 @@ int main()
      }
 
  
-      if (packet.keycode[0] == 0x29) { /* ESC pressed? */
+      if (packet.keycode[0] == 0x29) { // ESC pressed?
 	break;
       }
     }
   }
+	*/
+
+
+  while(!done) {}
 
   /* Terminate the network thread */
   pthread_cancel(network_thread);
@@ -192,15 +224,111 @@ int main()
 
 void *network_thread_f(void *ignored)
 {
+ do{
+ pthread_mutex_lock(&disp_msg_mutex);
+  //valid is zero initally
+  while(valid){ pthread_cond_wait(&cond0, &disp_msg_mutex);}
+
+ //relinquish control of mutex until cond0 is signaled
+  valid = 1;
+
+
   char recvBuf[BUFFER_SIZE];
   int n;
   /* Receive data */
   while ( (n = read(sockfd, &recvBuf, BUFFER_SIZE - 1)) > 0 ) {
     recvBuf[n] = '\0';
-    printf("%s", recvBuf);
+    printf(" %s", recvBuf);
     fbputs(recvBuf, 8, 0);
   }
-
+  message_row++;
+  pthread_cond_signal(&cond1);
+  pthread_mutex_unlock(&disp_msg_mutex); } while(!done);
   return NULL;
+
 }
 
+
+
+void *network_thread_type(void *ignored)
+{
+while(!done) {
+	   libusb_interrupt_transfer(keyboard, endpoint_address,
+                              (unsigned char *) &packet, sizeof(packet),
+                              &transferred, 0);
+
+  if (transferred == sizeof(packet)) {
+      sprintf(keystate, "%08x %02x %02x", packet.modifiers, packet.keycode[0],
+              packet.keycode[1]);
+      printf("%s\n", keystate);
+      //fbputs(keystate, 12, 0);
+      if (packet.keycode[0] != 0 && packet.keycode[0] != 42 && packet.keycode[0] != 40) {
+      if (packet.modifiers == 0x02 || packet.modifiers == 0x20){
+        fbputchar(usb2s_ascii[packet.keycode[0]], input_row, input_col);
+        int idx = (input_row - 22)*64+input_col;
+        sendBuf[idx] = usb2s_ascii[packet.keycode[0]];
+      }
+      else{
+        fbputchar(usb2ns_ascii[packet.keycode[0]], input_row, input_col);
+        int idx = (input_row - 22)*64+input_col;
+        sendBuf[idx] = usb2ns_ascii[packet.keycode[0]];
+      }
+      input_col++;
+      if (input_col == 64){
+        input_col = 0;
+        input_row++;
+      }
+      }
+      else if (packet.keycode[0] == 0){
+        fbputchar(12, input_row,input_col);
+      }
+      else if (packet.keycode[0] == 42){
+        fbputchar(' ', input_row, input_col);
+        sendBuf[input_row*64+input_col] = 0;
+        input_col--;
+        if (input_col < 0) {
+          input_col = 63;
+          input_row--;
+          fbputchar(' ', input_row, input_col);
+        }
+      }
+      else if (packet.keycode[0] == 40) { //enter
+
+	pthread_mutex_lock(&disp_msg_mutex);
+	while(!valid) pthread_cond_wait(&cond1, &disp_msg_mutex);
+
+	valid = 1;
+
+        clear_framebuff(22, 0);
+        input_row = 22;
+        input_col =0;
+        for (int i = 0; i < BUFFER_SIZE; i++) {
+            if(message_row == 21) {
+               fb_scroll(BUFFER_SIZE);
+               message_row = 19;
+            }
+            if (sendBuf[i] != ' ') {
+              printf("%c\n",sendBuf[i]);
+           }
+           fbputchar(sendBuf[i], message_row, message_col);
+           message_col++;
+            if (message_col == 64){
+                message_col = 0;
+                message_row++;
+            }
+
+        }
+	
+		write(sockfd, &sendBuf, BUFFER_SIZE-1);
+		pthread_cond_signal(&cond0);
+	        pthread_mutex_unlock(&disp_msg_mutex);
+     } // end enter
+
+
+      if (packet.keycode[0] == 0x29) { /* ESC pressed? */
+        done == 1;
+      } 
+    }//
+	
+	} 
+}
