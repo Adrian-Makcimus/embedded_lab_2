@@ -157,29 +157,35 @@ int main()
       }
 
       if (changed && packet.keycode[keyidx] != 0 && packet.keycode[keyidx] != 42 && packet.keycode[keyidx] != 40 && 
-          packet.keycode[keyidx] != 79 && packet.keycode[keyidx] != 80) {
-        if (packet.modifiers == 0x02 || packet.modifiers == 0x20){
+          packet.keycode[keyidx] != 79 && packet.keycode[keyidx] != 80 && packet.keycode[keyidx] != 41) { //regular key
+        if (packet.modifiers == 0x02 || packet.modifiers == 0x20){ //shift
           fbputinvertchar(usb2s_ascii[packet.keycode[keyidx]], input_row, input_col);
           int idx = (input_row - 22)*64+input_col;
           sendBuf[idx] = usb2s_ascii[packet.keycode[keyidx]];
           printf("%c%d\n", sendBuf[idx], idx);
         }
-        else{
+        else{ //no shift
           fbputchar(usb2ns_ascii[packet.keycode[keyidx]], input_row, input_col);
           int idx = (input_row - 22)*64+input_col;
           sendBuf[idx] = usb2ns_ascii[packet.keycode[keyidx]];
 	  printf("%c%d%d\n", sendBuf[idx], idx, sizeof(sendBuf[idx]));
         }
-        input_col = input_col + 1;
+        input_col++;
         if (input_col == 64){
 	  input_col = 0;
           input_row++;
         }
       }
-      else if (changed && packet.keycode[keyidx] == 0){
-        fbputchar(12, input_row,input_col);
+      else if (changed && packet.keycode[keyidx] == 0){ //let go or no input
+        int idx = (input_row - 22)*64+input_col;
+        if (sendBuf[idx] == '\0'){
+          fbputchar(12, input_row,input_col);
+        }
+        else {
+          fbputinvertchar(sendBuf[idx], input_row, input_col);
+        }
       }
-      else if (changed && packet.keycode[keyidx] == 42 && !(input_col == 0 && input_row == 0)){
+      else if (changed && packet.keycode[keyidx] == 42 && !(input_col == 0 && input_row == 22)){ //backspace
       	fbputchar(' ', input_row, input_col);
         input_col--;
         if (input_col < 0) {
@@ -188,21 +194,44 @@ int main()
           fbputchar(' ', input_row, input_col);
         }
         backspace_buffer(sendBuf, BUFFER_SIZE, (input_row-22)*64+input_col);
-
      }
-     else if (changed && packet.keycode[keyidx] == 79) { //right arrow
-
+     else if (changed && packet.keycode[keyidx] == 79 && !(input_col == 63 && input_row == 23 )) { //right arrow
+        int left_input_row = input_row;
+        int left_input_col = input_col+ 1;
+        if (left_input_col == 64){
+	  left_input_col = 0;
+          left_input_row++;
+        }
+        if (sendBuf[(left_input_row-22)*64+left_input_col] != '\0') {
+          fbputchar(sendBuf[(input_row-22)*64+input_col], input_row, input_col);
+          input_row = left_input_row;
+          input_col = left_input_col;
+          int idx = (input_row - 22)*64+input_col;
+          fbputinvertchar(sendBuf[idx], input_row, input_col);
+        }
+        else if (sendBuf[(left_input_row-22)*64+left_input_col] == '\0' && sendBuf[(input_row-22)*64+input_col] != '\0') {
+	  fbputchar(sendBuf[(input_row-22)*64+input_col], input_row, input_col);
+          input_row = left_input_row;
+          input_col = left_input_col;
+          fbputchar(12, input_row, input_col);
+        }
      }
-     else if (changed && packet.keycode[keyidx] == 80  && !(input_col == 0 && input_row == 0)) { //left arrow
+     else if (changed && packet.keycode[keyidx] == 80  && !(input_col == 0 && input_row == 22)) { //left arrow
+        if (sendBuf[(input_row-22)*64+input_col] == '\0') {
+          fbputchar(' ', input_row, input_col);
+        }
+        else {
+          fbputchar(sendBuf[(input_row-22)*64+input_col], input_row, input_col);
+        }
         input_col--;
         if (input_col < 0) {
           input_col = 63;
           input_row--;
-          fbputchar(' ', input_row, input_col);
+          int idx = (input_row - 22)*64+input_col;
+          fbputinvertchar(sendBuf[idx], input_row, input_col);
         }
-  
      }
-     else if (changed && packet.keycode[keyidx] == 40) {
+     else if (changed && packet.keycode[keyidx] == 40) { //enter
 	clear_framebuff(22, 0);
         input_row = 22;
         input_col =0;
@@ -225,7 +254,7 @@ int main()
 	    }
             
         }
-      memset(sendBuf, ' ', BUFFER_SIZE);
+      memset(sendBuf, '\0', BUFFER_SIZE);
         
      }
      changed = 0;
