@@ -406,8 +406,15 @@ void *network_thread_f(void *ignored)
            if (recvBuf[i] == '\0') {
 	      recvBuf[i] = ' ';
            }
-           fbputchar(recvBuf[i], message_row, message_col);
+
+	if(i<20) {fbputcharcolor (recvBuf[i],message_row, message_col); }
+          else{ fbputchar(recvBuf[i], message_row, message_col);}
+
+
+
 	    message_col++;
+
+
 	    if (message_col == 64){
 		message_col = 0;
 		message_row++;
