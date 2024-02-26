@@ -291,13 +291,28 @@ do{
 
   message_row = 9;
   message_col = 0; 
-    
+       libusb_interrupt_transfer(keyboard, endpoint_address,
+			      (unsigned char *) &packet, sizeof(packet),
+			      &transferred, 0);
+
+	pthread_mutex_lock(&mut1);	
+	while(transferred == sizeof(packet)) { 
+		pthread_cond_signal(&cond_wait);
+		pthread_cond_wait(&cond_wr, &mut1);
+		printf("HERE: %d" , message_row);
+	      libusb_interrupt_transfer(keyboard, endpoint_address,
+			      (unsigned char *) &packet, sizeof(packet),
+			      &transferred, 0);
+
+}
+
+   
 
   while ( (n = read(sockfd, &recvBuf, BUFFER_SIZE - 1)) > 0 ) {
     recvBuf[n] = '\0';
     printf("%s", recvBuf);
     len = 0;
-
+/*
       libusb_interrupt_transfer(keyboard, endpoint_address,
 			      (unsigned char *) &packet, sizeof(packet),
 			      &transferred, 0);
@@ -307,7 +322,11 @@ do{
 		pthread_cond_signal(&cond_wait);
 		pthread_cond_wait(&cond_wr, &mut1);
 		printf("HERE: %d" , message_row);
-	}
+	      libusb_interrupt_transfer(keyboard, endpoint_address,
+			      (unsigned char *) &packet, sizeof(packet),
+			      &transferred, 0);
+
+}*/
 
 	printf("outside %d", message_row);		
   
@@ -455,8 +474,21 @@ void *network_thread_fenter (void *ignored, char *sendBuf){
       if (packet.keycode[keyidx] == 0x29) { /* ESC pressed? */
 	done = 1;
       }
+
+
+       libusb_interrupt_transfer(keyboard, endpoint_address,
+			      (unsigned char *) &packet, sizeof(packet),
+			      &transferred, 0);
+
+
+
+
     }// end of packer = size of 
-   
+//       libusb_interrupt_transfer(keyboard, endpoint_address,
+//			      (unsigned char *) &packet, sizeof(packet),
+//			      &transferred, 0);
+
+  
 
 	pthread_cond_signal(&cond_wr);	
 	pthread_mutex_unlock(&mut1);
