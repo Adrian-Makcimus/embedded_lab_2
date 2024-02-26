@@ -302,11 +302,9 @@ do{
 			      (unsigned char *) &packet, sizeof(packet),
 			      &transferred, 0);
 
-	pthread_mutex_lock(&mut1);
-	if (transferred == sizeof(packet)) { bla = 1; }	
-
-	while(bla) { 
-	//	pthread_cond_signal(&cond_wait);
+	pthread_mutex_lock(&mut1);	
+	while(transferred == sizeof(packet)) { 
+		pthread_cond_signal(&cond_wait);
 		pthread_cond_wait(&cond_wr, &mut1);
 		printf("HERE: %d" , message_row);
 	}
@@ -356,8 +354,8 @@ void *network_thread_fenter (void *ignored, char *sendBuf){
 	while(!done) {
 
 
-//  pthread_mutex_lock(&mut1);
-//  while(transferred != sizeof(packet)) { pthread_cond_wait(&cond_wait, &mut1) ;}
+ pthread_mutex_lock(&mut1);
+ while(transferred != sizeof(packet)) { pthread_cond_wait(&cond_wait, &mut1) ;}
 
 
   if (transferred == sizeof(packet)) {
@@ -458,10 +456,10 @@ void *network_thread_fenter (void *ignored, char *sendBuf){
 	done = 1;
       }
     }// end of packer = size of 
-    	bla = 0;
+   
 
 	pthread_cond_signal(&cond_wr);	
-//	pthread_mutex_unlock(&mut1);
+	pthread_mutex_unlock(&mut1);
 
 
 	} //end of while (!done)
