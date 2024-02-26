@@ -147,13 +147,7 @@ void backspace(char *buf, int row, int col, int size) {
     int out_col = 0;
     clear_framebuff(out_row, out_col);
     
-    out_col--;
-    if (out_col < 0) {
-      out_col = 63;
-      out_row--;
-    }
-    
-    for (int i = idx; i < size; i ++) {
+    for (int i = 0; i < size; i ++) {
       if (buf[i] == '\0') {
 	    fbputchar(' ', out_row, out_col);
       }
