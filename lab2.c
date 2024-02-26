@@ -182,7 +182,7 @@ void backspace(char *buf, int row, int col, int size) {
 
 
 
-pthread_t read_thread,edit_thread,write_thread
+pthread_t read_thread,edit_thread,write_thread;
 pthread_mutex_t mut1 = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t cond_wr = PTHREAD_COND_INITIALIZER;
 pthread_cond_t cond_wait = PTHREAD_COND_INITIALIZER;
@@ -197,35 +197,34 @@ int wait_send = 0;
 int done = 0;
 
 
-  int err, col;
+int err, col;
+struct sockaddr_in serv_addr;
 
-  struct sockaddr_in serv_addr;
-
-  struct usb_keyboard_packet packet;
-  int transferred;
-  char keystate[12];
-  int input_row = 22;
-  int input_col = 0;
+struct usb_keyboard_packet packet;
+int transferred;
+char keystate[12];
+int input_row = 22;
+int input_col = 0;
   //int message_row = 9;
   //int message_col = 0;
-  char *sendBuf = malloc(BUFFER_SIZE);
+char *sendBuf =malloc(BUFFER_SIZE);
  
 
 
-  memset(sendBuf, '\0', BUFFER_SIZE);
+memset(sendBuf, '\0', BUFFER_SIZE);
 
-  uint8_t old_keys[] = {0, 0, 0, 0, 0, 0};
-  int keyidx = 0;
-  int changed = 0;
+uint8_t old_keys[] = {0, 0, 0, 0, 0, 0};
+int keyidx = 0;
+int changed = 0;
 
-  char recvBuf[BUFFER_SIZE];
-  int n;
-  int message_row = 9;
-  int message_col = 0;
+char recvBuf[BUFFER_SIZE];
+int n;
+int message_row = 9;
+int message_col = 0;
 
-  size_t len = 0;
-  int roll_scroll = 0;
-  int edit = 0; 
+size_t len = 0;
+int roll_scroll = 0;
+int edit = 0; 
 
 int main()
 {
