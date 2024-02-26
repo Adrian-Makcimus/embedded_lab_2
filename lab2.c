@@ -182,11 +182,21 @@ void backspace(char *buf, int row, int col, int size) {
 
 
 
-pthread_t network_thread;
-void *network_thread_f(void *);
+pthread_t read_thread,edit_thread,write_thread
+pthread_mutex_t mut1 = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t cond_wr = PTHREAD_COND_INITIALIZER;
+pthread_cond_t cond_wait = PTHREAD_COND_INITIALIZER;
 
-int main()
-{
+
+
+void *network_thread_fwrite(void *);
+void *network_thread_fread(void *);
+void *network_thread_fenter(void *);
+
+int wait_send = 0;
+int done = 0;
+
+
   int err, col;
 
   struct sockaddr_in serv_addr;
@@ -200,6 +210,36 @@ int main()
   //int message_col = 0;
   char *sendBuf = malloc(BUFFER_SIZE);
  
+
+
+  memset(sendBuf, '\0', BUFFER_SIZE);
+
+  uint8_t old_keys[] = {0, 0, 0, 0, 0, 0};
+  int keyidx = 0;
+  int changed = 0;
+
+
+
+
+
+int main()
+{
+ 
+  /*     
+  int err, col;
+
+  struct sockaddr_in serv_addr;
+
+  struct usb_keyboard_packet packet;
+  int transferred;
+  char keystate[12];
+  int input_row = 22;
+  int input_col = 0;
+  //int message_row = 9;
+  //int message_col = 0;
+  char *sendBuf = malloc(BUFFER_SIZE);
+ */
+
   if ((err = fbopen()) != 0) {
     fprintf(stderr, "Error: Could not open framebuffer: %d\n", err);
     exit(1);
@@ -212,7 +252,7 @@ int main()
     fbputchar('_', 21, col); 
   }
 
-  fbputs("Hello CSEE 4840 World!", 4, 10);
+ // fbputs("Hello CSEE 4840 World!", 4, 10);
 
   /* Open the keyboard */
   if ( (keyboard = openkeyboard(&endpoint_address)) == NULL ) {
@@ -242,14 +282,20 @@ int main()
   }
 
   /* Start the network thread */
-  pthread_create(&network_thread, NULL, network_thread_f, NULL);
+  pthread_create(&read_thread, NULL, network_thread_fread, NULL);
+  pthread_create(&edit_thread, NULL, network_thread_fenter, NULL);
+  pthread_create(&write_thread, NULL, network_thread_fwrite, NULL);
 
+/*
   memset(sendBuf, '\0', BUFFER_SIZE);
 
   uint8_t old_keys[] = {0, 0, 0, 0, 0, 0};
   int keyidx = 0;
   int changed = 0;
+*/
 
+
+  
   /* Look for and handle keypresses */
   for (;;) {
     libusb_interrupt_transfer(keyboard, endpoint_address,
@@ -368,7 +414,7 @@ int main()
   return 0;
 }
 
-void *network_thread_f(void *ignored)
+void *network_thread_fread(void *ignored)
 {
   char recvBuf[BUFFER_SIZE];
   int n;
@@ -418,4 +464,13 @@ void *network_thread_f(void *ignored)
   return NULL;
 }
 
+
+
+void *network_thread_fenter (void *ignored){
+
+
+
+
+
+}// end of network_thread_fenter
 
