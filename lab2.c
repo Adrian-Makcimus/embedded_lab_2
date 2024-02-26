@@ -207,11 +207,11 @@ int input_row = 22;
 int input_col = 0;
   //int message_row = 9;
   //int message_col = 0;
-char *sendBuf =malloc(BUFFER_SIZE);
+char *sendBuf;
  
 
 
-memset(sendBuf, '\0', BUFFER_SIZE);
+//memset(sendBuf, '\0', BUFFER_SIZE);
 
 uint8_t old_keys[] = {0, 0, 0, 0, 0, 0};
 int keyidx = 0;
@@ -228,6 +228,9 @@ int edit = 0;
 
 int main()
 {
+
+*sendBuf =malloc(BUFFER_SIZE);
+memset(sendBuf, '\0', BUFFER_SIZE);
  
   /*     
   int err, col;
@@ -481,7 +484,7 @@ do{
 	*/
 
   }//end of while (n=read())
- pthread_mutex_unlock(&disp_msg_mutex);
+ pthread_mutex_unlock(&mut1);
 
 } while(!done);
   return NULL;
@@ -499,7 +502,7 @@ libusb_interrupt_transfer(keyboard, endpoint_address,
   if (transferred == sizeof(packet)) {
    
 	pthread_mutex_lock(&mut1);
-	while(wait_send) {pthread_cond_wait(&cond_wr, &mut1) };
+	while(wait_send) {pthread_cond_wait(&cond_wr, &mut1); };
 
       sprintf(keystate, "%08x %02x %02x", packet.modifiers, packet.keycode[0],
 	      packet.keycode[1]);
@@ -632,7 +635,7 @@ void *network_thread_fwrite(void * ignored){
 	else {
 
  	len = strlen(recvBuf);
-        row_scroll = ((len-1)/64) + 1;
+        int row_scroll = ((len-1)/64) + 1;
         for (int i = 0; i < len; i++) {
 	    if(message_row == 21) {
                fb_scroll(row_scroll);
