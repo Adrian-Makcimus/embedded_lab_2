@@ -454,7 +454,7 @@ do{
 
     
         len = strlen(recvBuf);
-        row_scroll = ((len-1)/64) + 1;
+       int  row_scroll = ((len-1)/64) + 1;
         for (int i = 0; i < len; i++) {
 	    if(message_row == 21) {
                fb_scroll(row_scroll);
@@ -482,7 +482,7 @@ do{
 
   }//end of while (n=read())
     wait_send = 1;
-    pthread_cond_signal(&cond_sr);
+    pthread_cond_signal(&cond_wr);
    
  pthread_mutex_unlock(&mut1);
 
@@ -597,10 +597,10 @@ libusb_interrupt_transfer(keyboard, endpoint_address,
         input_col =0;
         send(sockfd, sendBuf, strlen(sendBuf), 0);  
         memset(sendBuf, '\0', BUFFER_SIZE); 
+	wait_send = 0;
 
      pthread_cond_signal(&cond_wait);
-     edit = 1;
-     wait_send = 1;
+    
     
     
      }
