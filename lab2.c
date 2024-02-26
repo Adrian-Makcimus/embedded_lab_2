@@ -343,9 +343,26 @@ do{
     len = 0;
   //  	edit = 0;
   //	pthread_cond_signal(&cond_wait);
-  //    	wait_send = 1;	
-/*	
-    
+  //    	wait_send = 1;	*	
+
+
+libusb_interrupt_transfer(keyboard, endpoint_address,
+			      (unsigned char *) &packet, sizeof(packet),
+			      &transferred, 0);
+
+// if (transferred == sizeof(packet)) {
+	//signal other thread to go and block here 
+//	while(wait_send) { pthread_cond_wait(&cond_wr,&mut1);  };		
+// }  // end of if tranfered = packet
+
+	pthread_mutex_lock(&mut1);
+
+	if(transferred == sizeof(packet)) { pthread_cond_signal(&cond_wait); }
+	while(transferred == sizeof(packet)) {  pthread_cond_wait(&cond_wr, &mut1); }
+
+//	if(transferred == sizeof(packet)) { pthread_cond_signal(&cond_wait); } 
+
+
         len = strlen(recvBuf);
        int  row_scroll = ((len-1)/64) + 1;
         for (int i = 0; i < len; i++) {
@@ -371,46 +388,14 @@ do{
           message_row++;
         }
 
-*/	
+
 
   }//end of while (n=read())
- pthread_mutex_lock(&mut1);
- 
 
- while(wait_send){ pthread_cond_wait(&cond_wr,&mut1);}
- 
-       len = strlen(recvBuf);
-       int  row_scroll = ((len-1)/64) + 1;
-        for (int i = 0; i < len; i++) {
-	    if(message_row == 21) {
-               fb_scroll(row_scroll);
-               message_row -= row_scroll;	
-            }
-            if (recvBuf[i] != ' ') {
-              printf("%c%d\n",recvBuf[i], i);
-           }
-           if (recvBuf[i] == '\0') {
-	      recvBuf[i] = ' ';
-           }
-           fbputchar(recvBuf[i], message_row, message_col);
-	    message_col++;
-	    if (message_col == 64){
-		message_col = 0;
-		message_row++;
-	    }     
-        }
-        if (message_col != 0) {
-          message_col = 0;
-          message_row++;
-        }
-
-
-
-
-
-
-    wait_send = 1;
-    pthread_cond_signal(&cond_wait);
+// pthread_mutex_lock(&mut1);
+ //while(wait_send){ pthread_cond_wait(&cond_wr,&mut1);}
+   // wait_send = 1;
+   // pthread_cond_signal(&cond_wait);
    
  pthread_mutex_unlock(&mut1);
 
@@ -423,12 +408,13 @@ do{
 void *network_thread_fenter (void *ignored){
 	while(!done) {
 
-libusb_interrupt_transfer(keyboard, endpoint_address,
-			      (unsigned char *) &packet, sizeof(packet),
-			      &transferred, 0);
-	pthread_mutex_lock(&mut1);
-	while(!wait_send) {pthread_cond_wait(&cond_wait, &mut1); };
-
+//libusb_interrupt_transfer(keyboard, endpoint_address,
+//			      (unsigned char *) &packet, sizeof(packet),
+//			      &transferred, 0);
+//	pthread_mutex_lock(&mut1);
+//	while(!wait_send) {pthread_cond_wait(&cond_wait, &mut1); };
+  pthread_mutex_lock(&mut1);
+  while(transferred != sizeof(packet)) { pthread_cond_wait(&cond_wait, &mut1) ;}
 
   if (transferred == sizeof(packet)) {
    
@@ -531,9 +517,9 @@ libusb_interrupt_transfer(keyboard, endpoint_address,
   	memset(sendBuf, '\0', BUFFER_SIZE); 
 
 	
-	wait_send = 0;
+//	wait_send = 0;
 //	edit = 1;
-     pthread_cond_signal(&cond_wait);
+//     pthread_cond_signal(&cond_wait);
     
     
     
@@ -545,7 +531,7 @@ libusb_interrupt_transfer(keyboard, endpoint_address,
       }
     }
 
-	
+	pthread_cond_signal(&cond_wr);	
 	pthread_mutex_unlock(&mut1);
 
 
