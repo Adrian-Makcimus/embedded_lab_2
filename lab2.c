@@ -191,7 +191,7 @@ pthread_cond_t cond_wait = PTHREAD_COND_INITIALIZER;
 
 void *network_thread_fwrite(void *);
 void *network_thread_fread(void *);
-void *network_thread_fenter(void *);
+void *network_thread_fenter(void *, char *sendBuf);
 
 int wait_send = 0;
 int done = 0;
@@ -270,7 +270,7 @@ memset(sendBuf, '\0', BUFFER_SIZE);
 
   /* Start the network thread */
   pthread_create(&read_thread, NULL, network_thread_fread, NULL);
-  pthread_create(&edit_thread, NULL, network_thread_fenter, NULL);
+  pthread_create(&edit_thread, NULL, network_thread_fenter, sendBuf);
 
    
   /* Wait for the network thread to finish */
@@ -327,7 +327,11 @@ do{
 		message_row++;
 	    }     
         }
-        if (message_col != 0) {
+        if (message_col != 0libusb_interrupt_transfer(keyboard, endpoint_address,
+                              (unsigned char *) &packet, sizeof(packet),
+                              &transferred, 0);
+
+) {
           message_col = 0;
           message_row++;
         }
@@ -344,7 +348,7 @@ do{
 
 
 
-void *network_thread_fenter (void *ignored){
+void *network_thread_fenter (void *ignored, char *sendBuf){
 	while(!done) {
 
 
