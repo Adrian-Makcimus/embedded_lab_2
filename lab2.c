@@ -180,7 +180,7 @@ void backspace(char *buf, int row, int col, int size) {
 
 }
 
-
+int bla = 0;
 
 pthread_t read_thread,edit_thread,write_thread;
 pthread_mutex_t mut1 = PTHREAD_MUTEX_INITIALIZER;
@@ -270,7 +270,7 @@ memset(sendBuf, '\0', BUFFER_SIZE);
 
   /* Start the network thread */
   pthread_create(&read_thread, NULL, network_thread_fread, NULL);
-  pthread_create(&edit_thread, NULL, network_thread_fenter, sendBuf);
+  pthread_create(&edit_thread, NULL, network_thread_fenter,*sendBuf);
 
    
   /* Wait for the network thread to finish */
@@ -291,23 +291,29 @@ do{
 
   message_row = 9;
   message_col = 0; 
-     libusb_interrupt_transfer(keyboard, endpoint_address,
-			      (unsigned char *) &packet, sizeof(packet),
-			      &transferred, 0);
-
-	pthread_mutex_lock(&mut1);
-	while(transferred == sizeof(packet)) { 
-	//	pthread_cond_signal(&cond_wait);
-		pthread_cond_wait(&cond_wr, &mut1);
-	}
-
+    
 
   while ( (n = read(sockfd, &recvBuf, BUFFER_SIZE - 1)) > 0 ) {
     recvBuf[n] = '\0';
     printf("%s", recvBuf);
     len = 0;
 
-    
+      libusb_interrupt_transfer(keyboard, endpoint_address,
+			      (unsigned char *) &packet, sizeof(packet),
+			      &transferred, 0);
+
+	pthread_mutex_lock(&mut1);
+	if (transferred == sizeof(packet)) { bla = 1; }	
+
+	while(bla) { 
+	//	pthread_cond_signal(&cond_wait);
+		pthread_cond_wait(&cond_wr, &mut1);
+		printf("HERE: %d" , message_row);
+	}
+
+	printf("outside %d", message_row);		
+  
+ 
         len = strlen(recvBuf);
        int  row_scroll = ((len-1)/64) + 1;
         for (int i = 0; i < len; i++) {
@@ -452,6 +458,7 @@ void *network_thread_fenter (void *ignored, char *sendBuf){
 	done = 1;
       }
     }// end of packer = size of 
+    	bla = 0;
 
 	pthread_cond_signal(&cond_wr);	
 //	pthread_mutex_unlock(&mut1);
