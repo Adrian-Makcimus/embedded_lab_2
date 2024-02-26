@@ -291,7 +291,7 @@ memset(sendBuf, '\0', BUFFER_SIZE);
   /* Start the network thread */
   pthread_create(&read_thread, NULL, network_thread_fread, NULL);
   pthread_create(&edit_thread, NULL, network_thread_fenter, NULL);
-  pthread_create(&write_thread, NULL, network_thread_fwrite, NULL);
+//  pthread_create(&write_thread, NULL, network_thread_fwrite, NULL);
 
 /*
   memset(sendBuf, '\0', BUFFER_SIZE);
@@ -420,7 +420,7 @@ memset(sendBuf, '\0', BUFFER_SIZE);
   
   /* Wait for the network thread to finish */
   pthread_join(read_thread, NULL);
-  pthread_join(write_thread,NULL);
+ // pthread_join(write_thread,NULL);
   pthread_join(edit_thread,NULL);
 
   free(sendBuf);
@@ -442,7 +442,7 @@ do{
  pthread_mutex_lock(&mut1);
  
 
- while(wait_send){ pthread_cond_wait(&cond_wr,&mut1);}
+ while(wait_send){ pthread_cond_wait(&cond_wait,&mut1);}
 
  
   while ( (n = read(sockfd, &recvBuf, BUFFER_SIZE - 1)) > 0 ) {
@@ -451,11 +451,8 @@ do{
     len = 0;
     
     
-    wait_send = 1;
-    edit = 0;
-    pthread_cond_signal(&cond_wait);
+
     
-  /*      
         len = strlen(recvBuf);
         row_scroll = ((len-1)/64) + 1;
         for (int i = 0; i < len; i++) {
@@ -481,9 +478,12 @@ do{
           message_row++;
         }
 
-	*/
+	
 
   }//end of while (n=read())
+    wait_send = 1;
+    pthread_cond_signal(&cond_sr);
+   
  pthread_mutex_unlock(&mut1);
 
 } while(!done);
@@ -502,7 +502,7 @@ libusb_interrupt_transfer(keyboard, endpoint_address,
   if (transferred == sizeof(packet)) {
    
 	pthread_mutex_lock(&mut1);
-	while(wait_send) {pthread_cond_wait(&cond_wr, &mut1); };
+	while(!wait_send) {pthread_cond_wait(&cond_wr, &mut1); };
 
       sprintf(keystate, "%08x %02x %02x", packet.modifiers, packet.keycode[0],
 	      packet.keycode[1]);
@@ -590,16 +590,19 @@ libusb_interrupt_transfer(keyboard, endpoint_address,
      }
      else if (changed && packet.keycode[keyidx] == 40) { //enter
 
-     pthread_cond_signal(&cond_wait);
-     edit = 1;
-     wait_send = 1;
-/*
-	 clear_framebuff(22, 0);
+  
+
+	clear_framebuff(22, 0);
         input_row = 22;
         input_col =0;
         send(sockfd, sendBuf, strlen(sendBuf), 0);  
-        memset(sendBuf, '\0', BUFFER_SIZE); */
+        memset(sendBuf, '\0', BUFFER_SIZE); 
 
+     pthread_cond_signal(&cond_wait);
+     edit = 1;
+     wait_send = 1;
+    
+    
      }
      changed = 0;
      
@@ -617,7 +620,7 @@ libusb_interrupt_transfer(keyboard, endpoint_address,
 }// end of network_thread_fenter
 
 
-
+/*
 
 void *network_thread_fwrite(void * ignored){
  do{
@@ -670,4 +673,4 @@ void *network_thread_fwrite(void * ignored){
 } // end of write thread
 
 
-
+*/
