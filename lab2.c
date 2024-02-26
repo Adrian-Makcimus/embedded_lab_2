@@ -152,7 +152,7 @@ void *network_thread_f(void *ignored)
   while ( (n = read(sockfd, &recvBuf, BUFFER_SIZE - 1)) > 0 ) {
     recvBuf[n] = '\0';
     printf(" %s", recvBuf);   
-    fbputs(recvBuf, 8, 0);
+    fbputs(recvBuf, message_row, 0);
   }
   
  //now that we want to access  
@@ -178,6 +178,14 @@ while(!done) {
                               &transferred, 0);
 
   if (transferred == sizeof(packet)) {
+	pthread_mutex_lock(&disp_msg_mutex);
+        while(!valid){ pthread_cond_wait(&cond1, &disp_msg_mutex);}
+  	valid = 0;
+
+
+
+
+
       sprintf(keystate, "%08x %02x %02x", packet.modifiers, packet.keycode[0],
               packet.keycode[1]);
       printf("%s\n", keystate);
@@ -215,11 +223,9 @@ while(!done) {
       else if (packet.keycode[0] == 40) { //enter
 
 	pthread_mutex_lock(&disp_msg_mutex);
-//	while(!valid){
-//	 pthread_cond_wait(&cond1, &disp_msg_mutex);}
+	while(!valid){
+	 pthread_cond_wait(&cond1, &disp_msg_mutex);}
 
-	valid = 0;
-	printf("at wait %d  " , valid);
         clear_framebuff(22, 0);
         input_row = 22;
         input_col =0;
@@ -241,8 +247,8 @@ while(!done) {
         }
 	
 	//	write(sockfd, &sendBuf, BUFFER_SIZE-1);
-	 	pthread_cond_signal(&cond0);
-	        pthread_mutex_unlock(&disp_msg_mutex);
+//	 	pthread_cond_signal(&cond0);
+//	        pthread_mutex_unlock(&disp_msg_mutex);
      } // end enter
 
 
@@ -250,7 +256,12 @@ while(!done) {
         done == 1;
       } 
     }//if transfered block
-	
+ 
+  pthread_cond_signal(&cond0);
+  pthread_mutex_unlock(&disp_msg_mutex);
+
+
+
 	} //end of while(!done)
 
 	return NULL;
