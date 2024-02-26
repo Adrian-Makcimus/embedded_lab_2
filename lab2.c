@@ -2,7 +2,7 @@
  *
  * CSEE 4840 Lab 2 for 2019
  *
- * Name/UNI: Please Changeto Yourname (pcy2301)
+ * Name/UNI: Please Changeto Yourname   char *sendBuf = malloc(BUFFER_SIZE);(pcy2301)
  */
 #include "fbputchar.h"
 #include <stdio.h>
@@ -56,7 +56,7 @@ void empty_line(int row, int col) {
 
 void backspace_buffer(char *buf, int size, int idx) {
   idx--;
-  char *buf2 = malloc(size);
+  char *sendBuf = malloc(BUFFER_SIZE);  char *buf2 = malloc(size);
   for (int i = 0; i < idx; i++) {
     buf2[i] = buf[i];
   }
@@ -229,7 +229,7 @@ int edit = 0;
 int main()
 {
 
-*sendBuf =malloc(BUFFER_SIZE);
+char *sendBuf =malloc(BUFFER_SIZE);
 memset(sendBuf, '\0', BUFFER_SIZE);
  
   /*     
@@ -291,7 +291,7 @@ memset(sendBuf, '\0', BUFFER_SIZE);
   /* Start the network thread */
   pthread_create(&read_thread, NULL, network_thread_fread, NULL);
   pthread_create(&edit_thread, NULL, network_thread_fenter, NULL);
-//  pthread_create(&write_thread, NULL, network_thread_fwrite, NULL);
+  pthread_create(&write_thread, NULL, network_thread_fwrite, NULL);
 
 /*
   memset(sendBuf, '\0', BUFFER_SIZE);
@@ -303,115 +303,7 @@ memset(sendBuf, '\0', BUFFER_SIZE);
 
 
   
-  /* Look for and handle keypresses */
- /* for (;;) {
-    libusb_interrupt_transfer(keyboard, endpoint_address,
-			      (unsigned char *) &packet, sizeof(packet),
-			      &transferred, 0);
-
-  if (transferred == sizeof(packet)) {
-
-      sprintf(keystate, "%08x %02x %02x", packet.modifiers, packet.keycode[0],
-	      packet.keycode[1]);
-      printf("%s\n", keystate);
-
-      for (int i = 0; i < 6; i++) {
-	if (old_keys[i] != packet.keycode[i]) {
-           keyidx = i;
-           changed = 1;
-           old_keys[i] = packet.keycode[i];
-        }
-      }
-
-      if (changed && packet.keycode[keyidx] != 0 && packet.keycode[keyidx] != 42 && packet.keycode[keyidx] != 40 && 
-          packet.keycode[keyidx] != 79 && packet.keycode[keyidx] != 80 && packet.keycode[keyidx] != 41) { //regular key
-        if (packet.modifiers == 0x02 || packet.modifiers == 0x20){ //shift
-          insert_key(sendBuf, usb2s_ascii[packet.keycode[keyidx]], input_row, input_col, BUFFER_SIZE);
-        }
-        else{ //no shift
-          insert_key(sendBuf, usb2ns_ascii[packet.keycode[keyidx]], input_row, input_col, BUFFER_SIZE);
-        }
-        if (!(input_col == 63 && input_row == 23) && sendBuf[BUFFER_SIZE-1] == '\0') { //not able to insert at 128
-          input_col++;
-          if (input_col == 64){
-            input_col = 0;
-            input_row++;
-          }
-        }
-      }
-      else if (changed && packet.keycode[keyidx] == 0){ //let go or no input
-        int idx = (input_row - 22)*64+input_col;
-        if (sendBuf[idx] == '\0'){
-          fbputchar(12, input_row,input_col);
-        }
-        else {
-          fbputinvertchar(sendBuf[idx], input_row, input_col);
-        }
-      }
-      else if (changed && packet.keycode[keyidx] == 42 && !(input_col == 0 && input_row == 22)){ //backspace
-        backspace(sendBuf, input_row, input_col, BUFFER_SIZE);
-        int idx = (input_row - 22)*64+input_col;
-        if(!(idx == 127 && sendBuf[idx] == '\0')){ //if you backspace at 128, you should insert again at 128
-          input_col--;
-          if (input_col < 0) {
-            input_col = 63;
-            input_row--;
-          }
-        }
-     }
-     else if (changed && packet.keycode[keyidx] == 79 && !(input_col == 63 && input_row == 23 )) { //right arrow
-        int left_input_row = input_row;
-        int left_input_col = input_col+ 1;
-        if (left_input_col == 64){
-        left_input_col = 0;
-          left_input_row++;
-        }
-        if (sendBuf[(left_input_row-22)*64+left_input_col] != '\0') {
-          fbputchar(sendBuf[(input_row-22)*64+input_col], input_row, input_col);
-          input_row = left_input_row;
-          input_col = left_input_col;
-          int idx = (input_row - 22)*64+input_col;
-          fbputinvertchar(sendBuf[idx], input_row, input_col);
-        }
-        else if (sendBuf[(left_input_row-22)*64+left_input_col] == '\0' && sendBuf[(input_row-22)*64+input_col] != '\0') {
-	      fbputchar(sendBuf[(input_row-22)*64+input_col], input_row, input_col);
-          input_row = left_input_row;
-          input_col = left_input_col;
-          fbputchar(12, input_row, input_col);
-        }
-     }
-     else if (changed && packet.keycode[keyidx] == 80  && !(input_col == 0 && input_row == 22)) { //left arrow
-        if (sendBuf[(input_row-22)*64+input_col] == '\0') {
-          fbputchar(' ', input_row, input_col);
-        }
-        else {
-          fbputchar(sendBuf[(input_row-22)*64+input_col], input_row, input_col);
-        }
-        input_col--;
-        if (input_col < 0) {
-          input_col = 63;
-          input_row--;
-        }
-        int idx = (input_row - 22)*64+input_col;
-        fbputinvertchar(sendBuf[idx], input_row, input_col);
-     }
-     else if (changed && packet.keycode[keyidx] == 40) { //enter
-	clear_framebuff(22, 0);
-        input_row = 22;
-        input_col =0;
-        send(sockfd, sendBuf, strlen(sendBuf), 0);  
-        memset(sendBuf, '\0', BUFFER_SIZE); 
-     }
-     changed = 0;
-     
-      if (packet.keycode[keyidx] == 0x29) {
-	break;
-      }
-    }
-  }
-  
-
-*/ 
+  /* Look for and handle keypresses */ 
 
 
   
@@ -420,7 +312,7 @@ memset(sendBuf, '\0', BUFFER_SIZE);
   
   /* Wait for the network thread to finish */
   pthread_join(read_thread, NULL);
- // pthread_join(write_thread,NULL);
+  pthread_join(write_thread,NULL);
   pthread_join(edit_thread,NULL);
 
   free(sendBuf);
@@ -442,17 +334,18 @@ do{
  pthread_mutex_lock(&mut1);
  
 
- while(wait_send){ pthread_cond_wait(&cond_wait,&mut1);}
-
+ while(wait_send){ pthread_cond_wait(&cond_wr,&mut1);}
+ 
  
   while ( (n = read(sockfd, &recvBuf, BUFFER_SIZE - 1)) > 0 ) {
     recvBuf[n] = '\0';
     printf("%s", recvBuf);
     len = 0;
-    
-    
-
-    
+    	edit = 0;
+  	pthread_cond_signal(&cond_wait);
+      	wait_send = 1;	
+	
+    /*
         len = strlen(recvBuf);
        int  row_scroll = ((len-1)/64) + 1;
         for (int i = 0; i < len; i++) {
@@ -478,11 +371,11 @@ do{
           message_row++;
         }
 
-	
+*/	
 
   }//end of while (n=read())
-    wait_send = 1;
-    pthread_cond_signal(&cond_wr);
+  //  wait_send = 1;
+  //  pthread_cond_signal(&cond_wr);
    
  pthread_mutex_unlock(&mut1);
 
@@ -502,7 +395,7 @@ libusb_interrupt_transfer(keyboard, endpoint_address,
   if (transferred == sizeof(packet)) {
    
 	pthread_mutex_lock(&mut1);
-	while(!wait_send) {pthread_cond_wait(&cond_wr, &mut1); };
+	while(wait_send) {pthread_cond_wait(&cond_wr, &mut1); };
 
       sprintf(keystate, "%08x %02x %02x", packet.modifiers, packet.keycode[0],
 	      packet.keycode[1]);
@@ -591,14 +484,17 @@ libusb_interrupt_transfer(keyboard, endpoint_address,
      else if (changed && packet.keycode[keyidx] == 40) { //enter
 
   
-
+/*
 	clear_framebuff(22, 0);
         input_row = 22;
         input_col =0;
         send(sockfd, sendBuf, strlen(sendBuf), 0);  
-        memset(sendBuf, '\0', BUFFER_SIZE); 
-	wait_send = 0;
-
+  
+  	memset(sendBuf, '\0', BUFFER_SIZE); 
+*/
+	
+	wait_send = 1;
+	edit = 1;
      pthread_cond_signal(&cond_wait);
     
     
@@ -620,7 +516,7 @@ libusb_interrupt_transfer(keyboard, endpoint_address,
 }// end of network_thread_fenter
 
 
-/*
+
 
 void *network_thread_fwrite(void * ignored){
  do{
@@ -673,4 +569,4 @@ void *network_thread_fwrite(void * ignored){
 } // end of write thread
 
 
-*/
+
