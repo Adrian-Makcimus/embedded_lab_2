@@ -76,17 +76,17 @@ void insert_buffer(char *buf, int size, int idx, char c) {
 
 void insert_key(char *buf, char c, int row, int col, int size) {
   if (buf[size - 1] != '\0') { //dont go past 128
-    return
+    return;
   }
   int idx = (row - 22)*64 + col;
   if (buf[idx] != '\0') { //inserting
     insert_buffer(buf, size, idx, c);
     //print out
     clear_framebuff(row, col);
-    out_row = row;
-    out_col = col;
+    int out_row = 22;
+    int out_col = 0;
     
-    for (int i = idx; i < size; i ++) {
+    for (int i = 0; i < size; i ++) {
       if (buf[i] == '\0') {
 	    fbputchar(' ', out_row, out_col);
       }
@@ -105,7 +105,7 @@ void insert_key(char *buf, char c, int row, int col, int size) {
 		row++;
 	  }
 
-    fbputinvertchar(buf[idx+1],col, row);
+    fbputinvertchar(buf[idx+1],row, col);
   }
   else { //add at end
      fbputchar(c, row, col);
@@ -129,7 +129,7 @@ void backspace(char *buf, int row, int col, int size) {
   if (idx == 127 && buf[idx] != '\0') { //backspace at 128 means just deleting the character and whitebox
     backspace_buffer(buf, BUFFER_SIZE, idx);
     fbputchar(12, row, col);
-    return
+    return;
   }
   if (buf[idx] == '\0') { //backspace at the end of what you are writing
     fbputchar(' ', row, col);
@@ -143,15 +143,16 @@ void backspace(char *buf, int row, int col, int size) {
   }
   else { //backspace somewhere in the middle
     backspace_buffer(buf, BUFFER_SIZE, (row-22)*64+col);
-    out_row = row;
-    out_col = col;
+    int out_row = 22;
+    int out_col = 0;
+    clear_framebuff(out_row, out_col);
+    
     out_col--;
     if (out_col < 0) {
       out_col = 63;
       out_row--;
     }
-    clear_framebuff(out_row, out_col);
-
+    
     for (int i = idx; i < size; i ++) {
       if (buf[i] == '\0') {
 	    fbputchar(' ', out_row, out_col);
@@ -266,7 +267,7 @@ int main()
           insert_key(sendBuf, usb2s_ascii[packet.keycode[keyidx]], input_row, input_col, BUFFER_SIZE);
         }
         else{ //no shift
-          insert_key(sendBuf, usb2s_ascii[packet.keycode[keyidx]], input_row, input_col, BUFFER_SIZE);
+          insert_key(sendBuf, usb2ns_ascii[packet.keycode[keyidx]], input_row, input_col, BUFFER_SIZE);
         }
         if (!(input_col == 63 && input_row == 23)) { //not able to insert at 128
           input_col++;
