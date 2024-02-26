@@ -91,7 +91,7 @@ int main()
     fbputchar('_', 21, col); 
   }
 
-  fbputs("Hello CSEE 4840 World!", 4, 10);
+//  fbputs("Hello CSEE 4840 World!", 4, 10);
 
   /* Open the keyboard */
   if ( (keyboard = openkeyboard(&endpoint_address)) == NULL ) {
@@ -125,11 +125,15 @@ int main()
   pthread_create(&network_thread2, NULL,&network_thread_type, NULL);
 
  
-
+   printf("bef: %d", valid);
   
   /* Wait for the network thread to finish */
   pthread_join(network_thread, NULL);
-  pthread_join(network_thread,NULL);
+
+ printf("aft1: %d", valid);
+  pthread_join(network_thread2 ,NULL);
+
+printf("aft2:  %d", valid);
 
   return 0;
 }
@@ -142,18 +146,18 @@ void *network_thread_f(void *ignored)
   int n;
   /* Receive data */
 
+ pthread_mutex_lock(&disp_msg_mutex);
+ while(valid) { pthread_cond_wait(&cond0, &disp_msg_mutex); }
+
   while ( (n = read(sockfd, &recvBuf, BUFFER_SIZE - 1)) > 0 ) {
     recvBuf[n] = '\0';
     printf(" %s", recvBuf);   
-   // fbputs(recvBuf, 8, 0);
+    fbputs(recvBuf, 8, 0);
   }
   
  //now that we want to access  
-  pthread_mutex_lock(&disp_msg_mutex);
+  
   //valid is zero initally
-  while(valid){ pthread_cond_wait(&cond0, &disp_msg_mutex);}
-  fbputs(recvBuf,message_row,0);
- //this should not wait in any case
   valid = 1;  
   message_row++;
   pthread_cond_signal(&cond1);
@@ -211,10 +215,11 @@ while(!done) {
       else if (packet.keycode[0] == 40) { //enter
 
 	pthread_mutex_lock(&disp_msg_mutex);
-	while(!valid) pthread_cond_wait(&cond1, &disp_msg_mutex);
+//	while(!valid){
+//	 pthread_cond_wait(&cond1, &disp_msg_mutex);}
 
 	valid = 0;
-
+	printf("at wait %d  " , valid);
         clear_framebuff(22, 0);
         input_row = 22;
         input_col =0;
@@ -235,8 +240,8 @@ while(!done) {
 
         }
 	
-		write(sockfd, &sendBuf, BUFFER_SIZE-1);
-	//	pthread_cond_signal(&cond0);
+	//	write(sockfd, &sendBuf, BUFFER_SIZE-1);
+	 	pthread_cond_signal(&cond0);
 	        pthread_mutex_unlock(&disp_msg_mutex);
      } // end enter
 
