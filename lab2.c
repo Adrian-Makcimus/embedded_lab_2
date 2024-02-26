@@ -291,7 +291,7 @@ memset(sendBuf, '\0', BUFFER_SIZE);
   /* Start the network thread */
   pthread_create(&read_thread, NULL, network_thread_fread, NULL);
   pthread_create(&edit_thread, NULL, network_thread_fenter, NULL);
-  pthread_create(&write_thread, NULL, network_thread_fwrite, NULL);
+//  pthread_create(&write_thread, NULL, network_thread_fwrite, NULL);
 
 /*
   memset(sendBuf, '\0', BUFFER_SIZE);
@@ -312,7 +312,7 @@ memset(sendBuf, '\0', BUFFER_SIZE);
   
   /* Wait for the network thread to finish */
   pthread_join(read_thread, NULL);
-  pthread_join(write_thread,NULL);
+ // pthread_join(write_thread,NULL);
   pthread_join(edit_thread,NULL);
 
   free(sendBuf);
@@ -331,21 +331,21 @@ do{
   message_col = 0;
   /* Receive data */
  
- pthread_mutex_lock(&mut1);
+// pthread_mutex_lock(&mut1);
  
 
- while(wait_send){ pthread_cond_wait(&cond_wr,&mut1);}
+// while(wait_send){ pthread_cond_wait(&cond_wr,&mut1);}
  
  
   while ( (n = read(sockfd, &recvBuf, BUFFER_SIZE - 1)) > 0 ) {
     recvBuf[n] = '\0';
     printf("%s", recvBuf);
     len = 0;
-    	edit = 0;
-  	pthread_cond_signal(&cond_wait);
-      	wait_send = 1;	
-	
-    /*
+  //  	edit = 0;
+  //	pthread_cond_signal(&cond_wait);
+  //    	wait_send = 1;	
+/*	
+    
         len = strlen(recvBuf);
        int  row_scroll = ((len-1)/64) + 1;
         for (int i = 0; i < len; i++) {
@@ -374,8 +374,43 @@ do{
 */	
 
   }//end of while (n=read())
-  //  wait_send = 1;
-  //  pthread_cond_signal(&cond_wr);
+ pthread_mutex_lock(&mut1);
+ 
+
+ while(wait_send){ pthread_cond_wait(&cond_wr,&mut1);}
+ 
+       len = strlen(recvBuf);
+       int  row_scroll = ((len-1)/64) + 1;
+        for (int i = 0; i < len; i++) {
+	    if(message_row == 21) {
+               fb_scroll(row_scroll);
+               message_row -= row_scroll;	
+            }
+            if (recvBuf[i] != ' ') {
+              printf("%c%d\n",recvBuf[i], i);
+           }
+           if (recvBuf[i] == '\0') {
+	      recvBuf[i] = ' ';
+           }
+           fbputchar(recvBuf[i], message_row, message_col);
+	    message_col++;
+	    if (message_col == 64){
+		message_col = 0;
+		message_row++;
+	    }     
+        }
+        if (message_col != 0) {
+          message_col = 0;
+          message_row++;
+        }
+
+
+
+
+
+
+    wait_send = 1;
+    pthread_cond_signal(&cond_wait);
    
  pthread_mutex_unlock(&mut1);
 
@@ -391,11 +426,14 @@ void *network_thread_fenter (void *ignored){
 libusb_interrupt_transfer(keyboard, endpoint_address,
 			      (unsigned char *) &packet, sizeof(packet),
 			      &transferred, 0);
+	pthread_mutex_lock(&mut1);
+	while(!wait_send) {pthread_cond_wait(&cond_wait, &mut1); };
+
 
   if (transferred == sizeof(packet)) {
    
-	pthread_mutex_lock(&mut1);
-	while(wait_send) {pthread_cond_wait(&cond_wr, &mut1); };
+//	pthread_mutex_lock(&mut1);
+//	while(wait_send) {pthread_cond_wait(&cond_wr, &mut1); };
 
       sprintf(keystate, "%08x %02x %02x", packet.modifiers, packet.keycode[0],
 	      packet.keycode[1]);
@@ -484,17 +522,17 @@ libusb_interrupt_transfer(keyboard, endpoint_address,
      else if (changed && packet.keycode[keyidx] == 40) { //enter
 
   
-/*
+
 	clear_framebuff(22, 0);
         input_row = 22;
         input_col =0;
         send(sockfd, sendBuf, strlen(sendBuf), 0);  
   
   	memset(sendBuf, '\0', BUFFER_SIZE); 
-*/
+
 	
-	wait_send = 1;
-	edit = 1;
+	wait_send = 0;
+//	edit = 1;
      pthread_cond_signal(&cond_wait);
     
     
@@ -507,7 +545,7 @@ libusb_interrupt_transfer(keyboard, endpoint_address,
       }
     }
 
-
+	
 	pthread_mutex_unlock(&mut1);
 
 
@@ -516,7 +554,7 @@ libusb_interrupt_transfer(keyboard, endpoint_address,
 }// end of network_thread_fenter
 
 
-
+/*
 
 void *network_thread_fwrite(void * ignored){
  do{
@@ -569,4 +607,4 @@ void *network_thread_fwrite(void * ignored){
 } // end of write thread
 
 
-
+*/
