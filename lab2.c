@@ -390,12 +390,17 @@ void *network_thread_f(void *ignored)
         }*/
         len = strlen(recvBuf);
         int row_scroll = ((len-1)/64) + 1;
+        if(message_row == 20 && row_scroll == 2) {
+	       fb_scroll(row_scroll-1);
+               message_row -= row_scroll-1;	
+        }
+
         for (int i = 0; i < len; i++) {
-	    if(message_row == 21) {
+	    if(message_row == 21 ) {
                fb_scroll(row_scroll);
                message_row -= row_scroll;	
             }
-            if (recvBuf[i] != ' ') {
+           if (recvBuf[i] != ' ') {
               printf("%c%d\n",recvBuf[i], i);
            }
            if (recvBuf[i] == '\0') {
