@@ -47,11 +47,18 @@ char usb2s_ascii[57] =  {0 , 0 , 0 , 0 ,'A','B','C','D','E','F','G','H','I','J',
                               '!','@','#','$','%','^','&','*','(',')', 0 , 0 , 0 ,'\t',' ',
                               '_','+','{','}','|', 0 ,':','\"','~','<','>','\?' };
 
+void empty_line(int row, int col) {
+  for(int i=col; i < 63; i++) {
+    fbputchar(' ', row, i);
+  }
+} 
+
 
 void backspace_buffer(char *buf, int size, int idx) {
+  idx--;
   char *buf2 = malloc(size);
   for (int i = 0; i < idx; i++) {
-    buf2[i] = buf[i];;
+    buf2[i] = buf[i];
   }
   for (int i = idx; i < size-1; i++) {
     buf2[i] = buf[i+1];
@@ -82,11 +89,11 @@ void insert_key(char *buf, char c, int row, int col, int size) {
   if (buf[idx] != '\0') { //inserting
     insert_buffer(buf, size, idx, c);
     //print out
-    clear_framebuff(row, col);
-    int out_row = 22;
-    int out_col = 0;
+    empty_line(row, col);
+    int out_row = row;
+    int out_col = col;
     
-    for (int i = 0; i < size; i ++) {
+    for (int i = idx; i < size; i ++) {
       if (buf[i] == '\0') {
 	    fbputchar(' ', out_row, out_col);
       }
@@ -126,12 +133,16 @@ void insert_key(char *buf, char c, int row, int col, int size) {
 
 void backspace(char *buf, int row, int col, int size) { 
   int idx = (row - 22)*64 + col;
+  if (idx == 0) { //do nothing when at the beginning
+    return;
+  }
   if (idx == 127 && buf[idx] != '\0') { //backspace at 128 means just deleting the character and whitebox
     backspace_buffer(buf, BUFFER_SIZE, idx);
     fbputchar(12, row, col);
     return;
   }
   if (buf[idx] == '\0') { //backspace at the end of what you are writing
+    backspace_buffer(buf, BUFFER_SIZE, (row-22)*64+col);
     fbputchar(' ', row, col);
     col--;
     if (col < 0) {
@@ -139,15 +150,14 @@ void backspace(char *buf, int row, int col, int size) {
       row--;
     }
     fbputchar(12, row, col);
-    backspace_buffer(buf, BUFFER_SIZE, (row-22)*64+col);
-  }
+   }
   else { //backspace somewhere in the middle
     backspace_buffer(buf, BUFFER_SIZE, (row-22)*64+col);
-    int out_row = 22;
-    int out_col = 0;
-    clear_framebuff(out_row, out_col);
+    int out_row = row;
+    int out_col = col;
+    empty_line(out_row, out_col);
     
-    for (int i = 0; i < size; i ++) {
+    for (int i = out_col; i < size; i ++) {
       if (buf[i] == '\0') {
 	    fbputchar(' ', out_row, out_col);
       }
@@ -160,7 +170,12 @@ void backspace(char *buf, int row, int col, int size) {
 		out_row++;
 	  }
     }
-    fbputinvertchar(buf[idx], row, col);
+    col--;
+    if (col < 0) {
+      col = 63;
+      row--;
+    }
+    fbputinvertchar(buf[idx-1], row, col);
   }
 
 }
@@ -181,8 +196,8 @@ int main()
   char keystate[12];
   int input_row = 22;
   int input_col = 0;
-  int message_row = 9;
-  int message_col = 0;
+  //int message_row = 9;
+  //int message_col = 0;
   char *sendBuf = malloc(BUFFER_SIZE);
  
   if ((err = fbopen()) != 0) {
@@ -263,7 +278,7 @@ int main()
         else{ //no shift
           insert_key(sendBuf, usb2ns_ascii[packet.keycode[keyidx]], input_row, input_col, BUFFER_SIZE);
         }
-        if (!(input_col == 63 && input_row == 23)) { //not able to insert at 128
+        if (!(input_col == 63 && input_row == 23) && sendBuf[BUFFER_SIZE-1] == '\0') { //not able to insert at 128
           input_col++;
           if (input_col == 64){
             input_col = 0;
@@ -323,34 +338,16 @@ int main()
         if (input_col < 0) {
           input_col = 63;
           input_row--;
-          int idx = (input_row - 22)*64+input_col;
-          fbputinvertchar(sendBuf[idx], input_row, input_col);
         }
+        int idx = (input_row - 22)*64+input_col;
+        fbputinvertchar(sendBuf[idx], input_row, input_col);
      }
      else if (changed && packet.keycode[keyidx] == 40) { //enter
-	    clear_framebuff(22, 0);
+	clear_framebuff(22, 0);
         input_row = 22;
         input_col =0;
-        for (int i = 0; i < BUFFER_SIZE; i++) {
-	    if(message_row == 21) {
-               fb_scroll(BUFFER_SIZE);
-               message_row = 19;	
-            }
-            if (sendBuf[i] != ' ') {
-              printf("%c%d\n",sendBuf[i], i);
-           }
-           if (sendBuf[i] == '\0') {
-	      sendBuf[i] = ' ';
-           }
-           fbputchar(sendBuf[i], message_row, message_col);
-	    message_col++;
-	    if (message_col == 64){
-		message_col = 0;
-		message_row++;
-	    }
-            
-        }
-      memset(sendBuf, '\0', BUFFER_SIZE); 
+        send(sockfd, sendBuf, strlen(sendBuf), 0);  
+        memset(sendBuf, '\0', BUFFER_SIZE); 
      }
      changed = 0;
      
@@ -375,11 +372,47 @@ void *network_thread_f(void *ignored)
 {
   char recvBuf[BUFFER_SIZE];
   int n;
+  int message_row = 9;
+  int message_col = 0;
   /* Receive data */
   while ( (n = read(sockfd, &recvBuf, BUFFER_SIZE - 1)) > 0 ) {
     recvBuf[n] = '\0';
     printf("%s", recvBuf);
-    fbputs(recvBuf, 8, 0);
+    size_t len = 0;
+        /*if (sendBuf[BUFFER_SIZE] == '\0') {
+          len = strlen(sendBuf);
+        }
+        else {
+          len = BUFFER_SIZE;
+        }
+        if (len == 0) {
+          len++;
+        }*/
+        len = strlen(recvBuf);
+        int row_scroll = ((len-1)/64) + 1;
+        for (int i = 0; i < len; i++) {
+	    if(message_row == 21) {
+               fb_scroll(row_scroll);
+               message_row -= row_scroll;	
+            }
+            if (recvBuf[i] != ' ') {
+              printf("%c%d\n",recvBuf[i], i);
+           }
+           if (recvBuf[i] == '\0') {
+	      recvBuf[i] = ' ';
+           }
+           fbputchar(recvBuf[i], message_row, message_col);
+	    message_col++;
+	    if (message_col == 64){
+		message_col = 0;
+		message_row++;
+	    }     
+        }
+        if (message_col != 0) {
+          message_col = 0;
+          message_row++;
+        }
+
   }
 
   return NULL;

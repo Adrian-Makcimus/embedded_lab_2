@@ -152,8 +152,7 @@ void fbputinvertchar(char c, int row, int col)
 
 
 
-void fb_scroll(int msglen) {
-    int rows = msglen / 64;
+void fb_scroll(int rows) {
     unsigned char *framebuffer2 = calloc(fb_finfo.smem_len, sizeof('a'));
     unsigned char *framebuffer_scroll = framebuffer+(rows * FONT_HEIGHT * 2 + fb_vinfo.yoffset) * fb_finfo.line_length; 
     size_t middle_section = fb_finfo.smem_len - ((rows * FONT_HEIGHT * 2 + fb_vinfo.yoffset) * fb_finfo.line_length) -
@@ -168,6 +167,7 @@ void fb_scroll(int msglen) {
 void clear_framebuff(int rowstart, int colstart) {
     unsigned char *framebuffer_start = framebuffer +
     (rowstart * FONT_HEIGHT * 2 + fb_vinfo.yoffset) * fb_finfo.line_length;
+
 
     size_t middle_section = fb_finfo.smem_len - ((rowstart * FONT_HEIGHT * 2 + fb_vinfo.yoffset) * fb_finfo.line_length);
 
