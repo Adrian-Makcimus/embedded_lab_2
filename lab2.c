@@ -239,7 +239,7 @@ memset(sendBuf, '\0', BUFFER_SIZE);
     fbputchar('_', 21, col); 
   }
 
- // fbputs("Hello CSEE 4840 World!", 4, 10);
+  fbputs("Hello CSEE 4840 World!", 4, 10);
 
   /* Open the keyboard */
   if ( (keyboard = openkeyboard(&endpoint_address)) == NULL ) {
@@ -291,22 +291,23 @@ do{
 
   message_row = 9;
   message_col = 0; 
- 
-  while ( (n = read(sockfd, &recvBuf, BUFFER_SIZE - 1)) > 0 ) {
-    recvBuf[n] = '\0';
-    printf("%s", recvBuf);
-    len = 0;
-
-    libusb_interrupt_transfer(keyboard, endpoint_address,
+     libusb_interrupt_transfer(keyboard, endpoint_address,
 			      (unsigned char *) &packet, sizeof(packet),
 			      &transferred, 0);
 
 	pthread_mutex_lock(&mut1);
 	while(transferred == sizeof(packet)) { 
-		pthread_cond_signal(&cond_wait);
+	//	pthread_cond_signal(&cond_wait);
 		pthread_cond_wait(&cond_wr, &mut1);
 	}
 
+
+  while ( (n = read(sockfd, &recvBuf, BUFFER_SIZE - 1)) > 0 ) {
+    recvBuf[n] = '\0';
+    printf("%s", recvBuf);
+    len = 0;
+
+    
         len = strlen(recvBuf);
        int  row_scroll = ((len-1)/64) + 1;
         for (int i = 0; i < len; i++) {
@@ -327,13 +328,10 @@ do{
 		message_row++;
 	    }     
         }
-        if (message_col != 0libusb_interrupt_transfer(keyboard, endpoint_address,
-                              (unsigned char *) &packet, sizeof(packet),
-                              &transferred, 0);
+        if (message_col != 0) {
+	message_col = 0;
+	message_row++;
 
-) {
-          message_col = 0;
-          message_row++;
         }
 
 
@@ -352,10 +350,11 @@ void *network_thread_fenter (void *ignored, char *sendBuf){
 	while(!done) {
 
 
-  pthread_mutex_lock(&mut1);
-  while(transferred != sizeof(packet)) { pthread_cond_wait(&cond_wait, &mut1) ;}
+//  pthread_mutex_lock(&mut1);
+//  while(transferred != sizeof(packet)) { pthread_cond_wait(&cond_wait, &mut1) ;}
 
-//  if (transferred == sizeof(packet)) {
+
+  if (transferred == sizeof(packet)) {
       sprintf(keystate, "%08x %02x %02x", packet.modifiers, packet.keycode[0],
 	      packet.keycode[1]);
       printf("%s\n", keystate);
@@ -452,10 +451,10 @@ void *network_thread_fenter (void *ignored, char *sendBuf){
       if (packet.keycode[keyidx] == 0x29) { /* ESC pressed? */
 	done = 1;
       }
-   // }// end of packer = size of 
+    }// end of packer = size of 
 
 	pthread_cond_signal(&cond_wr);	
-	pthread_mutex_unlock(&mut1);
+//	pthread_mutex_unlock(&mut1);
 
 
 	} //end of while (!done)
