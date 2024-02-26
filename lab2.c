@@ -207,12 +207,6 @@ int input_row = 22;
 int input_col = 0;
   //int message_row = 9;
   //int message_col = 0;
-char *sendBuf;
- 
-
-
-//memset(sendBuf, '\0', BUFFER_SIZE);
-
 uint8_t old_keys[] = {0, 0, 0, 0, 0, 0};
 int keyidx = 0;
 int changed = 0;
@@ -232,20 +226,6 @@ int main()
 char *sendBuf =malloc(BUFFER_SIZE);
 memset(sendBuf, '\0', BUFFER_SIZE);
  
-  /*     
-  int err, col;
-
-  struct sockaddr_in serv_addr;
-
-  struct usb_keyboard_packet packet;
-  int transferred;
-  char keystate[12];
-  int input_row = 22;
-  int input_col = 0;
-  //int message_row = 9;
-  //int message_col = 0;
-  char *sendBuf = malloc(BUFFER_SIZE);
- */
 
   if ((err = fbopen()) != 0) {
     fprintf(stderr, "Error: Could not open framebuffer: %d\n", err);
@@ -291,25 +271,8 @@ memset(sendBuf, '\0', BUFFER_SIZE);
   /* Start the network thread */
   pthread_create(&read_thread, NULL, network_thread_fread, NULL);
   pthread_create(&edit_thread, NULL, network_thread_fenter, NULL);
-//  pthread_create(&write_thread, NULL, network_thread_fwrite, NULL);
 
-/*
-  memset(sendBuf, '\0', BUFFER_SIZE);
-
-  uint8_t old_keys[] = {0, 0, 0, 0, 0, 0};
-  int keyidx = 0;
-  int changed = 0;
-*/
-
-
-  
-  /* Look for and handle keypresses */ 
-
-
-  
-  /* Terminate the network thread */
-//  pthread_cancel(network_thread);
-  
+   
   /* Wait for the network thread to finish */
   pthread_join(read_thread, NULL);
  // pthread_join(write_thread,NULL);
@@ -325,43 +288,24 @@ memset(sendBuf, '\0', BUFFER_SIZE);
 void *network_thread_fread(void *ignored)
 {
 do{
- // char recvBuf[BUFFER_SIZE];
- // int n;
-  message_row = 9;
-  message_col = 0;
-  /* Receive data */
- 
-// pthread_mutex_lock(&mut1);
- 
 
-// while(wait_send){ pthread_cond_wait(&cond_wr,&mut1);}
- 
+  message_row = 9;
+  message_col = 0; 
  
   while ( (n = read(sockfd, &recvBuf, BUFFER_SIZE - 1)) > 0 ) {
     recvBuf[n] = '\0';
     printf("%s", recvBuf);
     len = 0;
-  //  	edit = 0;
-  //	pthread_cond_signal(&cond_wait);
-  //    	wait_send = 1;	*	
 
-
-libusb_interrupt_transfer(keyboard, endpoint_address,
+    libusb_interrupt_transfer(keyboard, endpoint_address,
 			      (unsigned char *) &packet, sizeof(packet),
 			      &transferred, 0);
 
-// if (transferred == sizeof(packet)) {
-	//signal other thread to go and block here 
-//	while(wait_send) { pthread_cond_wait(&cond_wr,&mut1);  };		
-// }  // end of if tranfered = packet
-
 	pthread_mutex_lock(&mut1);
-
-	if(transferred == sizeof(packet)) { pthread_cond_signal(&cond_wait); }
-	while(transferred == sizeof(packet)) {  pthread_cond_wait(&cond_wr, &mut1); }
-
-//	if(transferred == sizeof(packet)) { pthread_cond_signal(&cond_wait); } 
-
+	while(transferred == sizeof(packet)) { 
+		pthread_cond_signal(&cond_wait);
+		pthread_cond_wait(&cond_wr, &mut1);
+	}
 
         len = strlen(recvBuf);
        int  row_scroll = ((len-1)/64) + 1;
@@ -392,11 +336,6 @@ libusb_interrupt_transfer(keyboard, endpoint_address,
 
   }//end of while (n=read())
 
-// pthread_mutex_lock(&mut1);
- //while(wait_send){ pthread_cond_wait(&cond_wr,&mut1);}
-   // wait_send = 1;
-   // pthread_cond_signal(&cond_wait);
-   
  pthread_mutex_unlock(&mut1);
 
 } while(!done);
@@ -408,19 +347,11 @@ libusb_interrupt_transfer(keyboard, endpoint_address,
 void *network_thread_fenter (void *ignored){
 	while(!done) {
 
-//libusb_interrupt_transfer(keyboard, endpoint_address,
-//			      (unsigned char *) &packet, sizeof(packet),
-//			      &transferred, 0);
-//	pthread_mutex_lock(&mut1);
-//	while(!wait_send) {pthread_cond_wait(&cond_wait, &mut1); };
+
   pthread_mutex_lock(&mut1);
   while(transferred != sizeof(packet)) { pthread_cond_wait(&cond_wait, &mut1) ;}
 
-  if (transferred == sizeof(packet)) {
-   
-//	pthread_mutex_lock(&mut1);
-//	while(wait_send) {pthread_cond_wait(&cond_wr, &mut1); };
-
+//  if (transferred == sizeof(packet)) {
       sprintf(keystate, "%08x %02x %02x", packet.modifiers, packet.keycode[0],
 	      packet.keycode[1]);
       printf("%s\n", keystate);
@@ -506,30 +437,18 @@ void *network_thread_fenter (void *ignored){
         fbputinvertchar(sendBuf[idx], input_row, input_col);
      }
      else if (changed && packet.keycode[keyidx] == 40) { //enter
-
-  
-
 	clear_framebuff(22, 0);
         input_row = 22;
         input_col =0;
         send(sockfd, sendBuf, strlen(sendBuf), 0);  
-  
-  	memset(sendBuf, '\0', BUFFER_SIZE); 
-
-	
-//	wait_send = 0;
-//	edit = 1;
-//     pthread_cond_signal(&cond_wait);
-    
-    
-    
+  	memset(sendBuf, '\0', BUFFER_SIZE);  
      }
      changed = 0;
      
       if (packet.keycode[keyidx] == 0x29) { /* ESC pressed? */
 	done = 1;
       }
-    }
+   // }// end of packer = size of 
 
 	pthread_cond_signal(&cond_wr);	
 	pthread_mutex_unlock(&mut1);
