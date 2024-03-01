@@ -2,7 +2,7 @@
  *
  * CSEE 4840 Lab 2 for 2019
  *
- * Name/UNI: Please Changeto Yourname (pcy2301)
+ * Name/UNI: Brandon Cruz (bvc2106), Adrian Florea (anf2143)
  */
 #include "fbputchar.h"
 #include <stdio.h>
@@ -40,19 +40,19 @@ uint8_t endpoint_address;
 
 char usb2ns_ascii[57] = {0 , 0 , 0 , 0 ,'a','b','c','d','e','f','g','h','i','j','k',
                               'l','m','n','o','p','q','r','s','t','u','v','w','x','y','z',
-                              '1','2','3','4','5','6','7','8','9','0', 0 , 0 , 0 ,'\t',' ',
+                              '1','2','3','4','5','6','7','8','9','0', 0 , 0 , 0 ,0,' ',
                               '-','=','[',']','\\',0 ,';','\'','`',',','.','/' };
 char usb2s_ascii[57] =  {0 , 0 , 0 , 0 ,'A','B','C','D','E','F','G','H','I','J','K',
                               'L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z',
-                              '!','@','#','$','%','^','&','*','(',')', 0 , 0 , 0 ,'\t',' ',
+                              '!','@','#','$','%','^','&','*','(',')', 0 , 0 , 0 ,0,' ',
                               '_','+','{','}','|', 0 ,':','\"','~','<','>','\?' };
 char usb2cl_ascii[57] =  {0 , 0 , 0 , 0 ,'A','B','C','D','E','F','G','H','I','J','K',
                               'L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z',
-                              '1','2','3','4','5','6','7','8','9','0', 0 , 0 , 0 ,'\t',' ',
+                              '1','2','3','4','5','6','7','8','9','0', 0 , 0 , 0 ,0,' ',
                               '-','=','[',']','\\',0 ,';','\'','`',',','.','/' };
 char usb2scl_ascii[57] = {0 , 0 , 0 , 0 ,'a','b','c','d','e','f','g','h','i','j','k',
                               'l','m','n','o','p','q','r','s','t','u','v','w','x','y','z',
-                              '!','@','#','$','%','^','&','*','(',')', 0 , 0 , 0 ,'\t',' ',
+                              '!','@','#','$','%','^','&','*','(',')', 0 , 0 , 0 ,0,' ',
                               '_','+','{','}','|', 0 ,':','\"','~','<','>','\?' };
 
 
@@ -299,7 +299,7 @@ int main()
         }
       }
 
-      if (changed && ((packet.keycode[keyidx] >= 4 && packet.keycode[keyidx] <= 39) || (packet.keycode[keyidx] >= 43 &&
+      if (changed && ((packet.keycode[keyidx] >= 4 && packet.keycode[keyidx] <= 39) || (packet.keycode[keyidx] >= 44 &&
           packet.keycode[keyidx] <= 56))) { //regular key
         char prev = sendBuf[BUFFER_SIZE-1];
         if (!capslock && (packet.modifiers == 0x02 || packet.modifiers == 0x20)){ //shift and no caps lock
@@ -463,8 +463,7 @@ void *network_thread_f(void *ignored)
           notip = 1;
         }
         if (notip) {
-           for (int i = 0; i < len-1; i++) {
-	   printf("%c\n", recvBuf[i]);
+           for (int i = 0; i < len; i++) {
            if(message_row == 21 ) {
                fb_scroll(row_scroll);
                message_row -= row_scroll;	
@@ -472,10 +471,10 @@ void *network_thread_f(void *ignored)
            if (recvBuf[i] == '\0') {
 	      recvBuf[i] = ' ';
            }	
-           if (joinleave){
+           if (joinleave && recvBuf[i] != '\n'){
               fbputchar(recvBuf[i], message_row, message_col, 0, 0, 109);
            }
-           else {
+           else if (recvBuf[i] != '\n'){
 		 fbputchar(recvBuf[i], message_row, message_col, 255, 255, 255);
            }
 	   message_col++;
@@ -498,10 +497,10 @@ void *network_thread_f(void *ignored)
            if (i == 0 && recvBuf[i] == '<' && !ip) {
               ip = 1;
            }
-           if (ip) {
+           if (ip && recvBuf[i] != '\n') {
                fbputchar(recvBuf[i], message_row, message_col, 50, 250, 50);
            }
-           else {
+           else if (recvBuf[i] != '\n'){
 		 fbputchar(recvBuf[i], message_row, message_col, 255, 255, 255);
            }
            if (recvBuf[i] == '>' && ip) {
