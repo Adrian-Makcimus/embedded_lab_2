@@ -56,7 +56,6 @@ char usb2scl_ascii[57] = {0 , 0 , 0 , 0 ,'a','b','c','d','e','f','g','h','i','j'
                               '_','+','{','}','|', 0 ,':','\"','~','<','>','\?' };
 
 
-
 void empty_line(int row, int col) {
   for(int i=col; i < 63; i++) {
     fbputchar(' ', row, i, 255, 255, 255);
@@ -211,6 +210,9 @@ void delete(char *buf, int row, int col, int size) {
 
 pthread_t network_thread;
 void *network_thread_f(void *);
+void *usb_thread_f(void *);
+int usbchar = 0;
+int usbchar_ack = 1;
 
 int main()
 {
@@ -275,10 +277,10 @@ int main()
   int keyidx = 0;
   int changed = 0;
   int capslock = 0;
-  int numlock = 0;
 
   /* Look for and handle keypresses */
   for (;;) {
+
     libusb_interrupt_transfer(keyboard, endpoint_address,
 			      (unsigned char *) &packet, sizeof(packet),
 			      &transferred, 0);
@@ -433,6 +435,8 @@ int main()
   return 0;
 }
 
+
+
 void *network_thread_f(void *ignored)
 {
   char recvBuf[BUFFER_SIZE];
@@ -441,10 +445,11 @@ void *network_thread_f(void *ignored)
   int message_col = 0;
   /* Receive data */
   while ( (n = read(sockfd, &recvBuf, BUFFER_SIZE - 1)) > 0 ) {
+
     recvBuf[n] = '\0';
-    printf("%s", recvBuf);
     size_t len = 0;
     int joinleave = 0;
+    int notip = 0;
     int ip = 0;
         len = strlen(recvBuf);
         int row_scroll = ((len-1)/64) + 1;
@@ -455,6 +460,34 @@ void *network_thread_f(void *ignored)
         if (len > 2 && recvBuf[0] == '#' && recvBuf[1] == '#') {
           joinleave = 1;
         }
+        if (len > 1 && recvBuf[0] != '<') {
+          notip = 1;
+        }
+        if (notip) {
+           for (int i = 0; i < len-1; i++) {
+	   printf("%c\n", recvBuf[i]);
+           if(message_row == 21 ) {
+               fb_scroll(row_scroll);
+               message_row -= row_scroll;	
+           }
+           if (recvBuf[i] == '\0') {
+	      recvBuf[i] = ' ';
+           }	
+           if (joinleave){
+              fbputchar(recvBuf[i], message_row, message_col, 0, 0, 109);
+           }
+           else {
+		 fbputchar(recvBuf[i], message_row, message_col, 255, 255, 255);
+           }
+	   message_col++;
+	   if (message_col == 64){
+		message_col = 0;
+		message_row++;
+	   }     
+         }
+
+        }
+        else {
         for (int i = 0; i < len; i++) {
 	   if(message_row == 21 ) {
                fb_scroll(row_scroll);
@@ -469,9 +502,6 @@ void *network_thread_f(void *ignored)
            if (ip) {
                fbputchar(recvBuf[i], message_row, message_col, 50, 250, 50);
            }
-           else if (joinleave){
-		 fbputchar(recvBuf[i], message_row, message_col, 0, 0, 109);
-           }
            else {
 		 fbputchar(recvBuf[i], message_row, message_col, 255, 255, 255);
            }
@@ -483,6 +513,7 @@ void *network_thread_f(void *ignored)
 		message_col = 0;
 		message_row++;
 	   }     
+        }
         }
         if (message_col != 0) {
           message_col = 0;
