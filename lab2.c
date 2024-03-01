@@ -46,10 +46,20 @@ char usb2s_ascii[57] =  {0 , 0 , 0 , 0 ,'A','B','C','D','E','F','G','H','I','J',
                               'L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z',
                               '!','@','#','$','%','^','&','*','(',')', 0 , 0 , 0 ,'\t',' ',
                               '_','+','{','}','|', 0 ,':','\"','~','<','>','\?' };
+char usb2cl_ascii[57] =  {0 , 0 , 0 , 0 ,'A','B','C','D','E','F','G','H','I','J','K',
+                              'L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z',
+                              '1','2','3','4','5','6','7','8','9','0', 0 , 0 , 0 ,'\t',' ',
+                              '-','=','[',']','\\',0 ,';','\'','`',',','.','/' };
+char usb2scl_ascii[57] = {0 , 0 , 0 , 0 ,'a','b','c','d','e','f','g','h','i','j','k',
+                              'l','m','n','o','p','q','r','s','t','u','v','w','x','y','z',
+                              '!','@','#','$','%','^','&','*','(',')', 0 , 0 , 0 ,'\t',' ',
+                              '_','+','{','}','|', 0 ,':','\"','~','<','>','\?' };
+
+
 
 void empty_line(int row, int col) {
   for(int i=col; i < 63; i++) {
-    fbputchar(' ', row, i);
+    fbputchar(' ', row, i, 255, 255, 255);
   }
 } 
 
@@ -95,10 +105,10 @@ void insert_key(char *buf, char c, int row, int col, int size) {
     
     for (int i = idx; i < size; i ++) {
       if (buf[i] == '\0') {
-	    fbputchar(' ', out_row, out_col);
+	    fbputchar(' ', out_row, out_col, 255, 255, 255);
       }
       else {
-        fbputchar(buf[i], out_row, out_col);
+        fbputchar(buf[i], out_row, out_col, 255, 255, 255);
       }
 	  out_col++;
 	  if (out_col == 64){
@@ -115,7 +125,7 @@ void insert_key(char *buf, char c, int row, int col, int size) {
     fbputinvertchar(buf[idx+1],row, col);
   }
   else { //add at end
-     fbputchar(c, row, col);
+     fbputchar(c, row, col, 255, 255, 255);
      buf[idx] = c;
      if (idx == 127) {
        fbputinvertchar(buf[idx], row, col);
@@ -126,7 +136,7 @@ void insert_key(char *buf, char c, int row, int col, int size) {
 	     col = 0;
 		 row++;
 	   }
-       fbputchar(12, row, col);
+       fbputchar(12, row, col, 255, 255, 255);
      }
   }
 }
@@ -137,19 +147,19 @@ void backspace(char *buf, int row, int col, int size) {
     return;
   }
   if (idx == 127 && buf[idx] != '\0') { //backspace at 128 means just deleting the character and whitebox
-    backspace_buffer(buf, BUFFER_SIZE, idx);
-    fbputchar(12, row, col);
+    buf[idx] = '\0';
+    fbputchar(12, row, col, 255, 255, 255);
     return;
   }
   if (buf[idx] == '\0') { //backspace at the end of what you are writing
     backspace_buffer(buf, BUFFER_SIZE, (row-22)*64+col);
-    fbputchar(' ', row, col);
+    fbputchar(' ', row, col, 255, 255, 255);
     col--;
     if (col < 0) {
       col = 63;
       row--;
     }
-    fbputchar(12, row, col);
+    fbputchar(12, row, col, 255, 255, 255);
    }
   else { //backspace somewhere in the middle
     backspace_buffer(buf, BUFFER_SIZE, (row-22)*64+col);
@@ -157,12 +167,12 @@ void backspace(char *buf, int row, int col, int size) {
     int out_col = col;
     empty_line(out_row, out_col);
     
-    for (int i = out_col; i < size; i ++) {
+    for (int i = (out_row - 22)*64 + out_col; i < size; i ++) {
       if (buf[i] == '\0') {
-	    fbputchar(' ', out_row, out_col);
+	    fbputchar(' ', out_row, out_col, 255, 255, 255);
       }
       else {
-        fbputchar(buf[i], out_row, out_col);
+        fbputchar(buf[i], out_row, out_col, 255, 255, 255);
       }
 	  out_col++;
 	  if (out_col == 64){
@@ -180,6 +190,23 @@ void backspace(char *buf, int row, int col, int size) {
 
 }
 
+void delete(char *buf, int row, int col, int size) {
+    int idx = (row - 22)*64 + col;
+    if (buf[idx] == '\0') {
+      return;
+    } 
+    if (idx == size - 2 && buf[size - 1] == '\0') {
+      return;
+    }
+    if (!(row == 23 && col == 63)) {
+    col++;
+	   if (col == 64){
+	     col = 0;
+             row++;
+	   }
+    } 
+    backspace(buf, row, col, size);
+}
 
 
 pthread_t network_thread;
@@ -209,10 +236,8 @@ int main()
 
   /* Draw rows of asterisks across the top and bottom of the screen */
   for (col = 0 ; col < 64 ; col++) {
-    fbputchar('_', 21, col); 
+    fbputchar('_', 21, col, 255, 255, 255); 
   }
-
-  fbputs("Hello CSEE 4840 World!", 4, 10);
 
   /* Open the keyboard */
   if ( (keyboard = openkeyboard(&endpoint_address)) == NULL ) {
@@ -249,6 +274,8 @@ int main()
   uint8_t old_keys[] = {0, 0, 0, 0, 0, 0};
   int keyidx = 0;
   int changed = 0;
+  int capslock = 0;
+  int numlock = 0;
 
   /* Look for and handle keypresses */
   for (;;) {
@@ -270,12 +297,20 @@ int main()
         }
       }
 
-      if (changed && packet.keycode[keyidx] != 0 && packet.keycode[keyidx] != 42 && packet.keycode[keyidx] != 40 && 
-          packet.keycode[keyidx] != 79 && packet.keycode[keyidx] != 80 && packet.keycode[keyidx] != 41) { //regular key
-        if (packet.modifiers == 0x02 || packet.modifiers == 0x20){ //shift
+      if (changed && ((packet.keycode[keyidx] >= 4 && packet.keycode[keyidx] <= 39) || (packet.keycode[keyidx] >= 43 &&
+          packet.keycode[keyidx] <= 56))
+          /*changed && packet.keycode[keyidx] != 0 && packet.keycode[keyidx] != 42 && packet.keycode[keyidx] != 40 && 
+          packet.keycode[keyidx] != 79 && packet.keycode[keyidx] != 80 && packet.keycode[keyidx] != 41*/) { //regular key
+        if (!capslock && (packet.modifiers == 0x02 || packet.modifiers == 0x20)){ //shift and no caps lock
           insert_key(sendBuf, usb2s_ascii[packet.keycode[keyidx]], input_row, input_col, BUFFER_SIZE);
         }
-        else{ //no shift
+        else if(capslock && (packet.modifiers == 0x02 || packet.modifiers == 0x20)) { //caps lock and shift
+          insert_key(sendBuf, usb2scl_ascii[packet.keycode[keyidx]], input_row, input_col, BUFFER_SIZE);
+        }
+        else if(capslock) { //caps lock
+          insert_key(sendBuf, usb2cl_ascii[packet.keycode[keyidx]], input_row, input_col, BUFFER_SIZE);
+        }
+        else{ //no shift and no caps lock
           insert_key(sendBuf, usb2ns_ascii[packet.keycode[keyidx]], input_row, input_col, BUFFER_SIZE);
         }
         if (!(input_col == 63 && input_row == 23) && sendBuf[BUFFER_SIZE-1] == '\0') { //not able to insert at 128
@@ -289,23 +324,27 @@ int main()
       else if (changed && packet.keycode[keyidx] == 0){ //let go or no input
         int idx = (input_row - 22)*64+input_col;
         if (sendBuf[idx] == '\0'){
-          fbputchar(12, input_row,input_col);
+          fbputchar(12, input_row,input_col, 255, 255, 255);
         }
         else {
           fbputinvertchar(sendBuf[idx], input_row, input_col);
         }
       }
       else if (changed && packet.keycode[keyidx] == 42 && !(input_col == 0 && input_row == 22)){ //backspace
+ 	int idx = (input_row - 22)*64+input_col;
+        char prev = sendBuf[idx];
         backspace(sendBuf, input_row, input_col, BUFFER_SIZE);
-        int idx = (input_row - 22)*64+input_col;
-        if(!(idx == 127 && sendBuf[idx] == '\0')){ //if you backspace at 128, you should insert again at 128
+        if(!(idx == 127 && sendBuf[idx] == '\0' && prev != '\0')){ //if you backspace at 128, you should insert again at 128
           input_col--;
           if (input_col < 0) {
             input_col = 63;
             input_row--;
           }
         }
-     }
+      }
+     else if (changed && packet.keycode[keyidx] == 76){ //delete
+        delete(sendBuf, input_row, input_col, BUFFER_SIZE);
+    }
      else if (changed && packet.keycode[keyidx] == 79 && !(input_col == 63 && input_row == 23 )) { //right arrow
         int left_input_row = input_row;
         int left_input_col = input_col+ 1;
@@ -314,25 +353,25 @@ int main()
           left_input_row++;
         }
         if (sendBuf[(left_input_row-22)*64+left_input_col] != '\0') {
-          fbputchar(sendBuf[(input_row-22)*64+input_col], input_row, input_col);
+          fbputchar(sendBuf[(input_row-22)*64+input_col], input_row, input_col, 255, 255, 255);
           input_row = left_input_row;
           input_col = left_input_col;
           int idx = (input_row - 22)*64+input_col;
           fbputinvertchar(sendBuf[idx], input_row, input_col);
         }
         else if (sendBuf[(left_input_row-22)*64+left_input_col] == '\0' && sendBuf[(input_row-22)*64+input_col] != '\0') {
-	      fbputchar(sendBuf[(input_row-22)*64+input_col], input_row, input_col);
+	      fbputchar(sendBuf[(input_row-22)*64+input_col], input_row, input_col, 255, 255, 255);
           input_row = left_input_row;
           input_col = left_input_col;
-          fbputchar(12, input_row, input_col);
+          fbputchar(12, input_row, input_col, 255, 255, 255);
         }
      }
      else if (changed && packet.keycode[keyidx] == 80  && !(input_col == 0 && input_row == 22)) { //left arrow
         if (sendBuf[(input_row-22)*64+input_col] == '\0') {
-          fbputchar(' ', input_row, input_col);
+          fbputchar(' ', input_row, input_col, 255, 255, 255);
         }
         else {
-          fbputchar(sendBuf[(input_row-22)*64+input_col], input_row, input_col);
+          fbputchar(sendBuf[(input_row-22)*64+input_col], input_row, input_col, 255, 255, 255);
         }
         input_col--;
         if (input_col < 0) {
@@ -342,6 +381,30 @@ int main()
         int idx = (input_row - 22)*64+input_col;
         fbputinvertchar(sendBuf[idx], input_row, input_col);
      }
+     else if (changed && packet.keycode[keyidx] == 81  && !(input_row == 23)) { //down arrow
+        int idx = (input_row - 22)*64+input_col;
+        if (sendBuf[idx+63] != '\0') {
+          if(sendBuf[idx+64] == '\0') {
+            fbputchar(12, input_row+1, input_col, 255, 255, 255);
+          } 
+          else {
+            fbputinvertchar(sendBuf[idx+64], input_row+1, input_col);
+          }
+          fbputchar(sendBuf[(input_row-22)*64+input_col], input_row, input_col, 255, 255, 255);
+          input_row++;
+        }
+     }
+    else if (changed && packet.keycode[keyidx] == 82  && !(input_row == 22)) { //up arrow
+        int idx = (input_row - 22)*64+input_col;
+          fbputinvertchar(sendBuf[idx-64], input_row-1, input_col);
+          if (sendBuf[idx] == '\0') {
+            fbputchar(' ', input_row, input_col, 255, 255, 255);
+          }
+          else {
+             fbputchar(sendBuf[(input_row-22)*64+input_col], input_row, input_col, 255, 255, 255);
+          }
+          input_row--;
+     }
      else if (changed && packet.keycode[keyidx] == 40) { //enter
 	clear_framebuff(22, 0);
         input_row = 22;
@@ -349,11 +412,13 @@ int main()
         send(sockfd, sendBuf, strlen(sendBuf), 0);  
         memset(sendBuf, '\0', BUFFER_SIZE); 
      }
-     changed = 0;
-     
-      if (packet.keycode[keyidx] == 0x29) { /* ESC pressed? */
+     else if (changed && packet.keycode[keyidx] == 57) { //caps lock
+       capslock = ~capslock;
+     }
+     else if (packet.keycode[keyidx] == 41) { /* ESC pressed? */
 	break;
       }
+     changed = 0;
     }
   }
   
@@ -372,53 +437,52 @@ void *network_thread_f(void *ignored)
 {
   char recvBuf[BUFFER_SIZE];
   int n;
-  int message_row = 9;
+  int message_row = 0;
   int message_col = 0;
   /* Receive data */
   while ( (n = read(sockfd, &recvBuf, BUFFER_SIZE - 1)) > 0 ) {
     recvBuf[n] = '\0';
     printf("%s", recvBuf);
     size_t len = 0;
-        /*if (sendBuf[BUFFER_SIZE] == '\0') {
-          len = strlen(sendBuf);
-        }
-        else {
-          len = BUFFER_SIZE;
-        }
-        if (len == 0) {
-          len++;
-        }*/
+    int joinleave = 0;
+    int ip = 0;
         len = strlen(recvBuf);
         int row_scroll = ((len-1)/64) + 1;
         if(message_row == 20 && row_scroll == 2) {
 	       fb_scroll(row_scroll-1);
                message_row -= row_scroll-1;	
         }
-
+        if (len > 2 && recvBuf[0] == '#' && recvBuf[1] == '#') {
+          joinleave = 1;
+        }
         for (int i = 0; i < len; i++) {
-	    if(message_row == 21 ) {
+	   if(message_row == 21 ) {
                fb_scroll(row_scroll);
                message_row -= row_scroll;	
-            }
-           if (recvBuf[i] != ' ') {
-              printf("%c%d\n",recvBuf[i], i);
            }
            if (recvBuf[i] == '\0') {
 	      recvBuf[i] = ' ';
+           }	
+           if (i == 0 && recvBuf[i] == '<' && !ip) {
+              ip = 1;
            }
-
-	if(i<20) {fbputcharcolor (recvBuf[i],message_row, message_col); }
-          else{ fbputchar(recvBuf[i], message_row, message_col);}
-
-
-
-	    message_col++;
-
-
-	    if (message_col == 64){
+           if (ip) {
+               fbputchar(recvBuf[i], message_row, message_col, 50, 250, 50);
+           }
+           else if (joinleave){
+		 fbputchar(recvBuf[i], message_row, message_col, 0, 0, 109);
+           }
+           else {
+		 fbputchar(recvBuf[i], message_row, message_col, 255, 255, 255);
+           }
+           if (recvBuf[i] == '>' && ip) {
+              ip =0;
+           }
+	   message_col++;
+	   if (message_col == 64){
 		message_col = 0;
 		message_row++;
-	    }     
+	   }     
         }
         if (message_col != 0) {
           message_col = 0;
