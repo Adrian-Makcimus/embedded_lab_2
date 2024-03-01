@@ -300,9 +300,8 @@ int main()
       }
 
       if (changed && ((packet.keycode[keyidx] >= 4 && packet.keycode[keyidx] <= 39) || (packet.keycode[keyidx] >= 43 &&
-          packet.keycode[keyidx] <= 56))
-          /*changed && packet.keycode[keyidx] != 0 && packet.keycode[keyidx] != 42 && packet.keycode[keyidx] != 40 && 
-          packet.keycode[keyidx] != 79 && packet.keycode[keyidx] != 80 && packet.keycode[keyidx] != 41*/) { //regular key
+          packet.keycode[keyidx] <= 56))) { //regular key
+        char prev = sendBuf[BUFFER_SIZE-1];
         if (!capslock && (packet.modifiers == 0x02 || packet.modifiers == 0x20)){ //shift and no caps lock
           insert_key(sendBuf, usb2s_ascii[packet.keycode[keyidx]], input_row, input_col, BUFFER_SIZE);
         }
@@ -315,7 +314,7 @@ int main()
         else{ //no shift and no caps lock
           insert_key(sendBuf, usb2ns_ascii[packet.keycode[keyidx]], input_row, input_col, BUFFER_SIZE);
         }
-        if (!(input_col == 63 && input_row == 23) && sendBuf[BUFFER_SIZE-1] == '\0') { //not able to insert at 128
+        if (!(input_col == 63 && input_row == 23) && prev == '\0') { //not able to insert at 128
           input_col++;
           if (input_col == 64){
             input_col = 0;
